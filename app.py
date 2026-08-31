@@ -1,5 +1,6 @@
 import streamlit as st
 import math
+import io
 import plotly.graph_objects as go
 import ezdxf
 
@@ -24,22 +25,23 @@ Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
 # --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
-def procesar_dxf(file_bytes):
-    doc = ezdxf.readstream(file_bytes)
+def procesar_dxf(uploaded_file):
+    # Convertir el contenido del archivo cargado a texto decodificado
+    content_str = uploaded_file.getvalue().decode('utf-8', errors='ignore')
+    stream = io.StringIO(content_str)
+    
+    doc = ezdxf.read(stream)
     msp = doc.modelspace()
     
     poligonos = []
     
-    # 1. Extraer polilíneas cerradas del DXF
+    # Extraer polilíneas cerradas del DXF
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             points = [(p[0], p[1]) for p in entity.get_points()]
             if len(points) >= 3:
                 n = len(points)
-                # Área y Centroide por fórmula del agrimensor
-                A_i = 0.0
-                cx_i = 0.0
-                cy_i = 0.0
+                A_i, cx_i, cy_i = 0.0, 0.0, 0.0
                 for i in range(n):
                     x0, y0 = points[i]
                     x1, y1 = points[(i + 1) % n]
@@ -52,14 +54,14 @@ def procesar_dxf(file_bytes):
                 A_abs = abs(A_calc)
                 
                 if A_abs > 0:
-                    cx_i = cx_i / (6.0 * A_calc)
-                    cy_i = cy_i / (6.0 * A_calc)
+                    cross_tot = sum((points[i][0]*points[(i+1)%n][1] - points[(i+1)%n][0]*points[i][1]) for i in range(n))
+                    div = (3.0 * cross_tot) if cross_tot != 0 else 1.0
+                    cx_i = cx_i / div
+                    cy_i = cy_i / div
                     
-                    # Inercia de la figura respecto a su propio centroide
-                    Ixo = 0.0
-                    Iyo = 0.0
+                    Ixo, Iyo = 0.0, 0.0
                     for i in range(n):
-                        x0, y0 = points[i] - cx_i, points[i][1] - cy_i
+                        x0, y0 = points[i][0] - cx_i, points[i][1] - cy_i
                         x1, y1 = points[(i + 1) % n][0] - cx_i, points[(i + 1) % n][1] - cy_i
                         cross = (x0 * y1 - x1 * y0)
                         Ixo += (y0**2 + y0*y1 + y1**2) * cross
@@ -76,33 +78,25 @@ def procesar_dxf(file_bytes):
     if not poligonos:
         return None
 
-    # Ordenar por área (de mayor a menor)
     poligonos.sort(key=lambda p: p['A'], reverse=True)
 
-    # 2. Asignar signos (Exterior = Positivo, Interiores/Huecos = Negativos)
     if len(poligonos) >= 2:
-        # El primero es el contorno exterior, el resto son calados/huecos
         A_neto = poligonos[0]['A'] - sum(p['A'] for p in poligonos[1:])
-        
-        # Baricentro Neto
         Cx_g = (poligonos[0]['A']*poligonos[0]['cx'] - sum(p['A']*p['cx'] for p in poligonos[1:])) / A_neto
         Cy_g = (poligonos[0]['A']*poligonos[0]['cy'] - sum(p['A']*p['cy'] for p in poligonos[1:])) / A_neto
         
-        # Inercias Netas con Steiner (mm4)
         Jx_mm4 = (poligonos[0]['Ixo'] + poligonos[0]['A'] * ((poligonos[0]['cy'] - Cy_g)**2)) - \
                  sum(p['Ixo'] + p['A'] * ((p['cy'] - Cy_g)**2) for p in poligonos[1:])
                  
         Jy_mm4 = (poligonos[0]['Iyo'] + poligonos[0]['A'] * ((poligonos[0]['cx'] - Cx_g)**2)) - \
                  sum(p['Iyo'] + p['A'] * ((p['cx'] - Cx_g)**2) for p in poligonos[1:])
     else:
-        # Si es una sección maciza
         A_neto = poligonos[0]['A']
         Cx_g = poligonos[0]['cx']
         Cy_g = poligonos[0]['cy']
         Jx_mm4 = poligonos[0]['Ixo']
         Jy_mm4 = poligonos[0]['Iyo']
 
-    # Conversión a unidades de ingeniería (cm4 y cm3)
     Jx_cm4 = abs(Jx_mm4) / 10000.0
     Jy_cm4 = abs(Jy_mm4) / 10000.0
 
@@ -115,7 +109,6 @@ def procesar_dxf(file_bytes):
     Wx_cm3 = Jx_cm4 / ymax_cm if ymax_cm > 0 else Jx_cm4
     Wy_cm3 = Jy_cm4 / xmax_cm if xmax_cm > 0 else Jy_cm4
     
-    # Peso propio viga (kgf/m)
     Pp_calc = (A_neto / 1000000.0) * 7860.0
 
     return {
@@ -159,7 +152,6 @@ else:
                 Jx, Jy, Wx, Wy, Pp = res['Jx'], res['Jy'], res['Wx'], res['Wy'], res['Pp']
                 st.sidebar.success("✅ DXF procesado correctamente")
                 
-                # Renderizar perfil en Plotly
                 for idx, poly in enumerate(res['poligonos']):
                     pts = poly['pts']
                     xs = [p[0] - res['Cx'] for p in pts] + [pts[0][0] - res['Cx']]
