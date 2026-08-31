@@ -12,7 +12,7 @@ st.set_page_config(
 )
 
 st.title("🏗️ Calculadora de Viga para Puente Grúa")
-st.markdown("Cálculo estructural y mecánico (DIN 120 / DIN 4130 / DIN 655) con soporte para geometría arbitraria vía DXF.")
+st.markdown("Cálculo estructural y mecánico (DIN 120 / DIN 4130 / DIN 655) con soporte para geometría arbitraria y rotación vía DXF.")
 
 # --- SELECCIÓN DE MODO DE GEOMETRÍA ---
 st.sidebar.header("📐 Modo de Geometría")
@@ -25,15 +25,13 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
-def procesar_dxf(uploaded_file):
-    # Guardar archivo subido en un directorio temporal en el servidor
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF CON ROTACIÓN ---
+def procesar_dxf(uploaded_file, angulo_deg):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp_file:
         tmp_file.write(uploaded_file.getvalue())
         tmp_path = tmp_file.name
 
     try:
-        # Lectura segura desde archivo físico usando ezdxf
         doc = ezdxf.readfile(tmp_path)
         msp = doc.modelspace()
         
@@ -62,23 +60,11 @@ def procesar_dxf(uploaded_file):
                         cx_i = cx_i / div
                         cy_i = cy_i / div
                         
-                        Ixo, Iyo = 0.0, 0.0
-                        for i in range(n):
-                            x0, y0 = points[i][0] - cx_i, points[i][1] - cy_i
-                            x1, y1 = points[(i + 1) % n][0] - cx_i, points[(i + 1) % n][1] - cy_i
-                            cross = (x0 * y1 - x1 * y0)
-                            Ixo += (y0**2 + y0*y1 + y1**2) * cross
-                            Iyo += (x0**2 + x0*x1 + x1**2) * cross
-                        
-                        Ixo = abs(Ixo) / 12.0
-                        Iyo = abs(Iyo) / 12.0
-                        
                         poligonos.append({
                             'A': A_abs, 'cx': cx_i, 'cy': cy_i,
-                            'Ixo': Ixo, 'Iyo': Iyo, 'pts': points
+                            'pts': points
                         })
     finally:
-        # Eliminar archivo temporal
         if os.path.exists(tmp_path):
             os.remove(tmp_path)
 
@@ -87,31 +73,63 @@ def procesar_dxf(uploaded_file):
 
     poligonos.sort(key=lambda p: p['A'], reverse=True)
 
+    # 1. Baricentro Global Original (mm)
     if len(poligonos) >= 2:
         A_neto = poligonos[0]['A'] - sum(p['A'] for p in poligonos[1:])
         Cx_g = (poligonos[0]['A']*poligonos[0]['cx'] - sum(p['A']*p['cx'] for p in poligonos[1:])) / A_neto
         Cy_g = (poligonos[0]['A']*poligonos[0]['cy'] - sum(p['A']*p['cy'] for p in poligonos[1:])) / A_neto
-        
-        Jx_mm4 = (poligonos[0]['Ixo'] + poligonos[0]['A'] * ((poligonos[0]['cy'] - Cy_g)**2)) - \
-                 sum(p['Ixo'] + p['A'] * ((p['cy'] - Cy_g)**2) for p in poligonos[1:])
-                 
-        Jy_mm4 = (poligonos[0]['Iyo'] + poligonos[0]['A'] * ((poligonos[0]['cx'] - Cx_g)**2)) - \
-                 sum(p['Iyo'] + p['A'] * ((p['cx'] - Cx_g)**2) for p in poligonos[1:])
     else:
         A_neto = poligonos[0]['A']
         Cx_g = poligonos[0]['cx']
         Cy_g = poligonos[0]['cy']
-        Jx_mm4 = poligonos[0]['Ixo']
-        Jy_mm4 = poligonos[0]['Iyo']
+
+    # 2. Aplicar Rotación relativas al centroide
+    rad = math.radians(angulo_deg)
+    cos_a, sin_a = math.cos(rad), math.sin(rad)
+    
+    poligonos_rotados = []
+    for poly in poligonos:
+        pts_rot = []
+        for x, y in poly['pts']:
+            xr = x - Cx_g
+            yr = y - Cy_g
+            x_new = xr * cos_a - yr * sin_a
+            y_new = xr * sin_a + yr * cos_a
+            pts_rot.append((x_new, y_new))
+        
+        n = len(pts_rot)
+        Ixo_rot, Iyo_rot = 0.0, 0.0
+        for i in range(n):
+            x0, y0 = pts_rot[i]
+            x1, y1 = pts_rot[(i + 1) % n]
+            cross = (x0 * y1 - x1 * y0)
+            Ixo_rot += (y0**2 + y0*y1 + y1**2) * cross
+            Iyo_rot += (x0**2 + x0*x1 + x1**2) * cross
+        
+        poligonos_rotados.append({
+            'A': poly['A'],
+            'Ixo': abs(Ixo_rot) / 12.0,
+            'Iyo': abs(Iyo_rot) / 12.0,
+            'pts': pts_rot
+        })
+
+    # 3. Inercias Netas (cm4)
+    if len(poligonos_rotados) >= 2:
+        Jx_mm4 = poligonos_rotados[0]['Ixo'] - sum(p['Ixo'] for p in poligonos_rotados[1:])
+        Jy_mm4 = poligonos_rotados[0]['Iyo'] - sum(p['Iyo'] for p in poligonos_rotados[1:])
+    else:
+        Jx_mm4 = poligonos_rotados[0]['Ixo']
+        Jy_mm4 = poligonos_rotados[0]['Iyo']
 
     Jx_cm4 = abs(Jx_mm4) / 10000.0
     Jy_cm4 = abs(Jy_mm4) / 10000.0
 
-    all_pts_x = [p[0] for poly in poligonos for p in poly['pts']]
-    all_pts_y = [p[1] for poly in poligonos for p in poly['pts']]
+    # 4. Módulos resistentes Wx y Wy (cm3)
+    all_pts_x = [p[0] for poly in poligonos_rotados for p in poly['pts']]
+    all_pts_y = [p[1] for poly in poligonos_rotados for p in poly['pts']]
     
-    ymax_cm = max(abs(max(all_pts_y) - Cy_g), abs(min(all_pts_y) - Cy_g)) / 10.0
-    xmax_cm = max(abs(max(all_pts_x) - Cx_g), abs(min(all_pts_x) - Cx_g)) / 10.0
+    ymax_cm = max(abs(max(all_pts_y)), abs(min(all_pts_y))) / 10.0
+    xmax_cm = max(abs(max(all_pts_x)), abs(min(all_pts_x))) / 10.0
     
     Wx_cm3 = Jx_cm4 / ymax_cm if ymax_cm > 0 else Jx_cm4
     Wy_cm3 = Jy_cm4 / xmax_cm if xmax_cm > 0 else Jy_cm4
@@ -120,7 +138,7 @@ def procesar_dxf(uploaded_file):
 
     return {
         'Jx': Jx_cm4, 'Jy': Jy_cm4, 'Wx': Wx_cm3, 'Wy': Wy_cm3,
-        'Pp': Pp_calc, 'poligonos': poligonos, 'Cx': Cx_g, 'Cy': Cy_g
+        'Pp': Pp_calc, 'poligonos': poligonos_rotados
     }
 
 # --- ENTRADA DE DATOS Y SELECCIÓN ---
@@ -146,27 +164,39 @@ if modo_geometria == "Paramétrica (Viga Cajón estándar)":
     fig.add_shape(type="rect", x0=-b/2, y0=-h/2 - esp_patin, x1=b/2, y1=-h/2, fillcolor="SteelBlue", line=dict(color="Black"))
     fig.add_shape(type="rect", x0=-b/2 + dl, y0=-h/2, x1=-b/2 + dl + esp_alma, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
     fig.add_shape(type="rect", x0=b/2 - dl - esp_alma, y0=-h/2, x1=b/2 - dl, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
-    fig.update_layout(xaxis=dict(range=[-b*0.7, b*0.7]), yaxis=dict(range=[-h*0.7, h*0.7]))
+    fig.update_layout(
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        showlegend=False
+    )
 
 else:
     st.sidebar.subheader("📁 Cargar Archivo DXF")
     uploaded_dxf = st.sidebar.file_uploader("Seleccione el archivo .dxf dibujado en mm", type=["dxf"])
     
+    angulo_rotacion = st.sidebar.slider("🔄 Rotar Sección Transversal [grados]", min_value=0, max_value=360, value=90, step=15)
+    
     if uploaded_dxf is not None:
         try:
-            res = procesar_dxf(uploaded_dxf)
+            res = procesar_dxf(uploaded_dxf, angulo_rotacion)
             if res:
                 Jx, Jy, Wx, Wy, Pp = res['Jx'], res['Jy'], res['Wx'], res['Wy'], res['Pp']
-                st.sidebar.success("✅ DXF procesado correctamente")
+                st.sidebar.success(f"✅ DXF procesado | Rotación: {angulo_rotacion}°")
                 
                 for idx, poly in enumerate(res['poligonos']):
                     pts = poly['pts']
-                    xs = [p[0] - res['Cx'] for p in pts] + [pts[0][0] - res['Cx']]
-                    ys = [p[1] - res['Cy'] for p in pts] + [pts[0][1] - res['Cy']]
+                    xs = [p[0] for p in pts] + [pts[0][0]]
+                    ys = [p[1] for p in pts] + [pts[0][1]]
                     fill_type = "toself" if idx == 0 else "none"
                     color_line = "Black" if idx == 0 else "Red"
                     fig.add_trace(go.Scatter(x=xs, y=ys, fill=fill_type, fillcolor="LightSteelBlue", line=dict(color=color_line), mode="lines", name=f"Polígono {idx+1}"))
-                fig.update_layout(showlegend=False)
+                
+                # FIJAR ESCALA 1:1 EN PLOTLY SIN DEFORMACIÓN
+                fig.update_layout(
+                    yaxis=dict(scaleanchor="x", scaleratio=1, title="y [mm]"),
+                    xaxis=dict(title="x [mm]"),
+                    showlegend=False,
+                    height=550
+                )
             else:
                 st.sidebar.error("No se encontraron polilíneas cerradas en el DXF.")
         except Exception as e:
@@ -249,5 +279,5 @@ with col1:
     st.write(f"- **Peso propio viga:** {Pp:.2f} kgf/m")
 
 with col2:
-    st.subheader("📐 Geometría Transversal")
+    st.subheader("📐 Geometría Transversal (Escala Real 1:1)")
     st.plotly_chart(fig, use_container_width=True)
