@@ -1,6 +1,7 @@
 import streamlit as st
 import math
-import io
+import tempfile
+import os
 import plotly.graph_objects as go
 import ezdxf
 
@@ -26,53 +27,60 @@ fig = go.Figure()
 
 # --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
 def procesar_dxf(uploaded_file):
-    # Lectura binaria nativa multiformato (ASCII y Binary DXF)
-    bytes_data = uploaded_file.getvalue()
-    stream = io.BytesIO(bytes_data)
-    
-    doc = ezdxf.readstream(stream)
-    msp = doc.modelspace()
-    
-    poligonos = []
-    
-    for entity in msp:
-        if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
-            points = [(p[0], p[1]) for p in entity.get_points()]
-            if len(points) >= 3:
-                n = len(points)
-                A_i, cx_i, cy_i = 0.0, 0.0, 0.0
-                for i in range(n):
-                    x0, y0 = points[i]
-                    x1, y1 = points[(i + 1) % n]
-                    cross = (x0 * y1 - x1 * y0)
-                    A_i += cross
-                    cx_i += (x0 + x1) * cross
-                    cy_i += (y0 + y1) * cross
-                
-                A_calc = A_i / 2.0
-                A_abs = abs(A_calc)
-                
-                if A_abs > 0:
-                    cross_tot = sum((points[i][0]*points[(i+1)%n][1] - points[(i+1)%n][0]*points[i][1]) for i in range(n))
-                    div = (3.0 * cross_tot) if cross_tot != 0 else 1.0
-                    cx_i = cx_i / div
-                    cy_i = cy_i / div
-                    
-                    Ixo, Iyo = 0.0, 0.0
+    # Guardar archivo subido en un directorio temporal en el servidor
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp_file:
+        tmp_file.write(uploaded_file.getvalue())
+        tmp_path = tmp_file.name
+
+    try:
+        # Lectura segura desde archivo físico usando ezdxf
+        doc = ezdxf.readfile(tmp_path)
+        msp = doc.modelspace()
+        
+        poligonos = []
+        
+        for entity in msp:
+            if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
+                points = [(p[0], p[1]) for p in entity.get_points()]
+                if len(points) >= 3:
+                    n = len(points)
+                    A_i, cx_i, cy_i = 0.0, 0.0, 0.0
                     for i in range(n):
-                        x0, y0 = points[i][0] - cx_i, points[i][1] - cy_i
-                        x1, y1 = points[(i + 1) % n][0] - cx_i, points[(i + 1) % n][1] - cy_i
+                        x0, y0 = points[i]
+                        x1, y1 = points[(i + 1) % n]
                         cross = (x0 * y1 - x1 * y0)
-                        Ixo += (y0**2 + y0*y1 + y1**2) * cross
-                        Iyo += (x0**2 + x0*x1 + x1**2) * cross
+                        A_i += cross
+                        cx_i += (x0 + x1) * cross
+                        cy_i += (y0 + y1) * cross
                     
-                    Ixo = abs(Ixo) / 12.0
-                    Iyo = abs(Iyo) / 12.0
+                    A_calc = A_i / 2.0
+                    A_abs = abs(A_calc)
                     
-                    poligonos.append({
-                        'A': A_abs, 'cx': cx_i, 'cy': cy_i,
-                        'Ixo': Ixo, 'Iyo': Iyo, 'pts': points
-                    })
+                    if A_abs > 0:
+                        cross_tot = sum((points[i][0]*points[(i+1)%n][1] - points[(i+1)%n][0]*points[i][1]) for i in range(n))
+                        div = (3.0 * cross_tot) if cross_tot != 0 else 1.0
+                        cx_i = cx_i / div
+                        cy_i = cy_i / div
+                        
+                        Ixo, Iyo = 0.0, 0.0
+                        for i in range(n):
+                            x0, y0 = points[i][0] - cx_i, points[i][1] - cy_i
+                            x1, y1 = points[(i + 1) % n][0] - cx_i, points[(i + 1) % n][1] - cy_i
+                            cross = (x0 * y1 - x1 * y0)
+                            Ixo += (y0**2 + y0*y1 + y1**2) * cross
+                            Iyo += (x0**2 + x0*x1 + x1**2) * cross
+                        
+                        Ixo = abs(Ixo) / 12.0
+                        Iyo = abs(Iyo) / 12.0
+                        
+                        poligonos.append({
+                            'A': A_abs, 'cx': cx_i, 'cy': cy_i,
+                            'Ixo': Ixo, 'Iyo': Iyo, 'pts': points
+                        })
+    finally:
+        # Eliminar archivo temporal
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
 
     if not poligonos:
         return None
