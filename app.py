@@ -26,8 +26,14 @@ fig = go.Figure()
 
 # --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
 def procesar_dxf(uploaded_file):
-    # Convertir el contenido del archivo cargado a texto decodificado
-    content_str = uploaded_file.getvalue().decode('utf-8', errors='ignore')
+    raw_bytes = uploaded_file.getvalue()
+    
+    # Intento de decodificación tolerante a caracteres especiales/binarios
+    try:
+        content_str = raw_bytes.decode('utf-8', errors='ignore')
+    except Exception:
+        content_str = raw_bytes.decode('latin-1', errors='ignore')
+        
     stream = io.StringIO(content_str)
     
     doc = ezdxf.read(stream)
