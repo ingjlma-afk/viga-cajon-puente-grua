@@ -19,29 +19,24 @@ modo_geometria = st.sidebar.radio(
     ["Paramétrica (Viga Cajón estándar)", "Importar desde Archivo DXF"]
 )
 
-# Variables geométricas por defecto
+# Variables geométricas
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
-b_vis, h_vis = 500.0, 1000.0
 fig = go.Figure()
 
-# --- FUNCIONES DE LECTURA Y CÁLCULO DXF ---
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
 def procesar_dxf(file_bytes):
-    """
-    Lee las polilíneas cerradas (LWPOLYLINE / POLYLINE) del DXF (en mm)
-    y calcula A, Cx, Cy, Jx, Jy, Wx, Wy.
-    """
-    doc = ezdxf.read(file_bytes)
+    doc = ezdxf.readstream(file_bytes)
     msp = doc.modelspace()
     
-    elementos = []
+    poligonos = []
     
-    # Recorrer polilíneas cerradas (que representan chapas de la viga)
+    # 1. Extraer polilíneas cerradas del DXF
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             points = [(p[0], p[1]) for p in entity.get_points()]
             if len(points) >= 3:
-                # Calcular área y centroide de la chapa individual (Fórmula del Agrimensor)
                 n = len(points)
+                # Área y Centroide por fórmula del agrimensor
                 A_i = 0.0
                 cx_i = 0.0
                 cy_i = 0.0
@@ -53,66 +48,82 @@ def procesar_dxf(file_bytes):
                     cx_i += (x0 + x1) * cross
                     cy_i += (y0 + y1) * cross
                 
-                A_i = abs(A_i) / 2.0
-                if A_i > 0:
-                    cx_i = cx_i / (6.0 * (A_i if cross >= 0 else -A_i))
-                    cy_i = cy_i / (6.0 * (A_i if cross >= 0 else -A_i))
+                A_calc = A_i / 2.0
+                A_abs = abs(A_calc)
+                
+                if A_abs > 0:
+                    cx_i = cx_i / (6.0 * A_calc)
+                    cy_i = cy_i / (6.0 * A_calc)
                     
-                    # Inercias propias aproximadas respecto a su centroide
-                    xs = [p[0] for p in points]
-                    ys = [p[1] for p in points]
-                    b_e = max(xs) - min(xs)
-                    h_e = max(ys) - min(ys)
-                    I_xo = (b_e * h_e**3) / 12.0
-                    I_yo = (h_e * b_e**3) / 12.0
+                    # Inercia de la figura respecto a su propio centroide
+                    Ixo = 0.0
+                    Iyo = 0.0
+                    for i in range(n):
+                        x0, y0 = points[i] - cx_i, points[i][1] - cy_i
+                        x1, y1 = points[(i + 1) % n][0] - cx_i, points[(i + 1) % n][1] - cy_i
+                        cross = (x0 * y1 - x1 * y0)
+                        Ixo += (y0**2 + y0*y1 + y1**2) * cross
+                        Iyo += (x0**2 + x0*x1 + x1**2) * cross
                     
-                    elementos.append({
-                        'A': A_i, 'cx': cx_i, 'cy': cy_i,
-                        'Ixo': I_xo, 'Iyo': I_yo,
-                        'pts': points
+                    Ixo = abs(Ixo) / 12.0
+                    Iyo = abs(Iyo) / 12.0
+                    
+                    poligonos.append({
+                        'A': A_abs, 'cx': cx_i, 'cy': cy_i,
+                        'Ixo': Ixo, 'Iyo': Iyo, 'pts': points
                     })
 
-    if not elementos:
+    if not poligonos:
         return None
 
-    # Baricentro Global de la Sección Compuesta (mm)
-    A_total = sum(e['A'] for e in elementos)
-    Cx_g = sum(e['A'] * e['cx'] for e in elementos) / A_total
-    Cy_g = sum(e['A'] * e['cy'] for e in elementos) / A_total
+    # Ordenar por área (de mayor a menor)
+    poligonos.sort(key=lambda p: p['A'], reverse=True)
 
-    # Inercias Baricéntricas Globales con Steiner (convertidas a cm4)
-    # 1 cm4 = 10,000 mm4
-    Jx_mm4 = 0.0
-    Jy_mm4 = 0.0
+    # 2. Asignar signos (Exterior = Positivo, Interiores/Huecos = Negativos)
+    if len(poligonos) >= 2:
+        # El primero es el contorno exterior, el resto son calados/huecos
+        A_neto = poligonos[0]['A'] - sum(p['A'] for p in poligonos[1:])
+        
+        # Baricentro Neto
+        Cx_g = (poligonos[0]['A']*poligonos[0]['cx'] - sum(p['A']*p['cx'] for p in poligonos[1:])) / A_neto
+        Cy_g = (poligonos[0]['A']*poligonos[0]['cy'] - sum(p['A']*p['cy'] for p in poligonos[1:])) / A_neto
+        
+        # Inercias Netas con Steiner (mm4)
+        Jx_mm4 = (poligonos[0]['Ixo'] + poligonos[0]['A'] * ((poligonos[0]['cy'] - Cy_g)**2)) - \
+                 sum(p['Ixo'] + p['A'] * ((p['cy'] - Cy_g)**2) for p in poligonos[1:])
+                 
+        Jy_mm4 = (poligonos[0]['Iyo'] + poligonos[0]['A'] * ((poligonos[0]['cx'] - Cx_g)**2)) - \
+                 sum(p['Iyo'] + p['A'] * ((p['cx'] - Cx_g)**2) for p in poligonos[1:])
+    else:
+        # Si es una sección maciza
+        A_neto = poligonos[0]['A']
+        Cx_g = poligonos[0]['cx']
+        Cy_g = poligonos[0]['cy']
+        Jx_mm4 = poligonos[0]['Ixo']
+        Jy_mm4 = poligonos[0]['Iyo']
+
+    # Conversión a unidades de ingeniería (cm4 y cm3)
+    Jx_cm4 = abs(Jx_mm4) / 10000.0
+    Jy_cm4 = abs(Jy_mm4) / 10000.0
+
+    all_pts_x = [p[0] for poly in poligonos for p in poly['pts']]
+    all_pts_y = [p[1] for poly in poligonos for p in poly['pts']]
     
-    for e in elementos:
-        dy = e['cy'] - Cy_g
-        dx = e['cx'] - Cx_g
-        Jx_mm4 += e['Ixo'] + e['A'] * (dy**2)
-        Jy_mm4 += e['Iyo'] + e['A'] * (dx**2)
-
-    Jx_cm4 = Jx_mm4 / 10000.0
-    Jy_cm4 = Jy_mm4 / 10000.0
-
-    # Distancias a las fibras más alejadas (mm a cm)
-    all_pts_x = [p[0] for e in elementos for p in e['pts']]
-    all_pts_y = [p[1] for e in elementos for p in e['pts']]
-    
-    ymax_cm = (max(all_pts_y) - Cy_g) / 10.0
-    xmax_cm = (max(all_pts_x) - Cx_g) / 10.0
+    ymax_cm = max(abs(max(all_pts_y) - Cy_g), abs(min(all_pts_y) - Cy_g)) / 10.0
+    xmax_cm = max(abs(max(all_pts_x) - Cx_g), abs(min(all_pts_x) - Cx_g)) / 10.0
     
     Wx_cm3 = Jx_cm4 / ymax_cm if ymax_cm > 0 else Jx_cm4
     Wy_cm3 = Jy_cm4 / xmax_cm if xmax_cm > 0 else Jy_cm4
     
-    # Peso propio en kgf/m (A_total en mm2 -> m2)
-    Pp_calc = (A_total / 1000000.0) * 7860.0
+    # Peso propio viga (kgf/m)
+    Pp_calc = (A_neto / 1000000.0) * 7860.0
 
     return {
         'Jx': Jx_cm4, 'Jy': Jy_cm4, 'Wx': Wx_cm3, 'Wy': Wy_cm3,
-        'Pp': Pp_calc, 'elementos': elementos, 'Cx': Cx_g, 'Cy': Cy_g
+        'Pp': Pp_calc, 'poligonos': poligonos, 'Cx': Cx_g, 'Cy': Cy_g
     }
 
-# --- ENTRADA DE DATOS SEGÚN MODO ---
+# --- ENTRADA DE DATOS Y SELECCIÓN ---
 if modo_geometria == "Paramétrica (Viga Cajón estándar)":
     with st.sidebar.expander("📐 Geometría Cajón", expanded=True):
         b = st.number_input("Ancho viga (b) [mm]", value=500.0, step=10.0)
@@ -121,7 +132,6 @@ if modo_geometria == "Paramétrica (Viga Cajón estándar)":
         esp_alma = st.number_input("Espesor de almas [mm]", value=9.525, step=0.1)
         dl = st.number_input("Retranqueo del alma (dl) [mm]", value=50.0, step=5.0)
 
-    # Cálculos analíticos cajón
     b_cm, h_cm = b/10, h/10
     esp_p_cm, esp_a_cm = esp_patin/10, esp_alma/10
     dl_cm = dl/10
@@ -132,7 +142,6 @@ if modo_geometria == "Paramétrica (Viga Cajón estándar)":
     Wy = Jy / (b_cm/2)
     Pp = (2 * (b/1000) * (esp_patin/1000) + 2 * (h/1000) * (esp_alma/1000)) * 7860.0
 
-    # Dibujo Plotly
     fig.add_shape(type="rect", x0=-b/2, y0=h/2, x1=b/2, y1=h/2 + esp_patin, fillcolor="SteelBlue", line=dict(color="Black"))
     fig.add_shape(type="rect", x0=-b/2, y0=-h/2 - esp_patin, x1=b/2, y1=-h/2, fillcolor="SteelBlue", line=dict(color="Black"))
     fig.add_shape(type="rect", x0=-b/2 + dl, y0=-h/2, x1=-b/2 + dl + esp_alma, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
@@ -150,21 +159,23 @@ else:
                 Jx, Jy, Wx, Wy, Pp = res['Jx'], res['Jy'], res['Wx'], res['Wy'], res['Pp']
                 st.sidebar.success("✅ DXF procesado correctamente")
                 
-                # Renderizar geometría DXF en Plotly
-                for elem in res['elementos']:
-                    pts = elem['pts']
+                # Renderizar perfil en Plotly
+                for idx, poly in enumerate(res['poligonos']):
+                    pts = poly['pts']
                     xs = [p[0] - res['Cx'] for p in pts] + [pts[0][0] - res['Cx']]
                     ys = [p[1] - res['Cy'] for p in pts] + [pts[0][1] - res['Cy']]
-                    fig.add_trace(go.Scatter(x=xs, y=ys, fill="toself", mode="lines", name="Chapa"))
+                    fill_type = "toself" if idx == 0 else "none"
+                    color_line = "Black" if idx == 0 else "Red"
+                    fig.add_trace(go.Scatter(x=xs, y=ys, fill=fill_type, fillcolor="LightSteelBlue", line=dict(color=color_line), mode="lines", name=f"Polígono {idx+1}"))
                 fig.update_layout(showlegend=False)
             else:
                 st.sidebar.error("No se encontraron polilíneas cerradas en el DXF.")
         except Exception as e:
-            st.sidebar.error(f"Error al leer DXF: {e}")
+            st.sidebar.error(f"Error al procesar DXF: {e}")
     else:
-        st.info("👈 Por favor cargue un archivo DXF desde la barra lateral para realizar los cálculos.")
+        st.info("👈 Cargue el archivo .dxf desde la barra lateral para procesar la geometría.")
 
-# --- RESTO DE PARÁMETROS Y CÁLCULOS ESTÁNDAR ---
+# --- PARÁMETROS DE CARGA Y CÁLCULOS ESTÁNDAR ---
 with st.sidebar.expander("🌉 Geometría del Puente y Cargas", expanded=True):
     Luz = st.number_input("Luz del puente (L) [m]", value=20.0, step=1.0)
     al = st.number_input("Distancia entre ruedas del carro (al) [mm]", value=1100.0, step=50.0)
