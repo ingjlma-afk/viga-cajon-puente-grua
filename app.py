@@ -26,22 +26,15 @@ fig = go.Figure()
 
 # --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
 def procesar_dxf(uploaded_file):
-    raw_bytes = uploaded_file.getvalue()
+    # Lectura binaria nativa multiformato (ASCII y Binary DXF)
+    bytes_data = uploaded_file.getvalue()
+    stream = io.BytesIO(bytes_data)
     
-    # Intento de decodificación tolerante a caracteres especiales/binarios
-    try:
-        content_str = raw_bytes.decode('utf-8', errors='ignore')
-    except Exception:
-        content_str = raw_bytes.decode('latin-1', errors='ignore')
-        
-    stream = io.StringIO(content_str)
-    
-    doc = ezdxf.read(stream)
+    doc = ezdxf.readstream(stream)
     msp = doc.modelspace()
     
     poligonos = []
     
-    # Extraer polilíneas cerradas del DXF
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             points = [(p[0], p[1]) for p in entity.get_points()]
