@@ -1,7 +1,8 @@
+from modulo_cables import verificar_tabla_cables
+from modulo_cables import verificar_tabla_cables
 import streamlit as st
 import math
-import tempfile
-import os
+import io
 import plotly.graph_objects as go
 import ezdxf
 
@@ -12,7 +13,7 @@ st.set_page_config(
 )
 
 st.title("🏗️ Calculadora de Viga para Puente Grúa")
-st.markdown("Cálculo estructural y mecánico (DIN 120 / DIN 4130 / DIN 655) con soporte para geometría arbitraria y rotación vía DXF.")
+st.markdown("Cálculo estructural y mecánico (DIN 120 / DIN 4130 / DIN 655) con soporte para geometría arbitraria vía DXF.")
 
 # --- SELECCIÓN DE MODO DE GEOMETRÍA ---
 st.sidebar.header("📐 Modo de Geometría")
@@ -25,111 +26,93 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF CON ROTACIÓN ---
-def procesar_dxf(uploaded_file, angulo_deg):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp_file:
-        tmp_file.write(uploaded_file.getvalue())
-        tmp_path = tmp_file.name
-
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
+def procesar_dxf(uploaded_file):
+    raw_bytes = uploaded_file.getvalue()
+    
+    # Intento de decodificación tolerante a caracteres especiales/binarios
     try:
-        doc = ezdxf.readfile(tmp_path)
-        msp = doc.modelspace()
+        content_str = raw_bytes.decode('utf-8', errors='ignore')
+    except Exception:
+        content_str = raw_bytes.decode('latin-1', errors='ignore')
         
-        poligonos = []
-        
-        for entity in msp:
-            if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
-                points = [(p[0], p[1]) for p in entity.get_points()]
-                if len(points) >= 3:
-                    n = len(points)
-                    A_i, cx_i, cy_i = 0.0, 0.0, 0.0
+    stream = io.StringIO(content_str)
+    
+    doc = ezdxf.read(stream)
+    msp = doc.modelspace()
+    
+    poligonos = []
+    
+    # Extraer polilíneas cerradas del DXF
+    for entity in msp:
+        if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
+            points = [(p[0], p[1]) for p in entity.get_points()]
+            if len(points) >= 3:
+                n = len(points)
+                A_i, cx_i, cy_i = 0.0, 0.0, 0.0
+                for i in range(n):
+                    x0, y0 = points[i]
+                    x1, y1 = points[(i + 1) % n]
+                    cross = (x0 * y1 - x1 * y0)
+                    A_i += cross
+                    cx_i += (x0 + x1) * cross
+                    cy_i += (y0 + y1) * cross
+                
+                A_calc = A_i / 2.0
+                A_abs = abs(A_calc)
+                
+                if A_abs > 0:
+                    cross_tot = sum((points[i][0]*points[(i+1)%n][1] - points[(i+1)%n][0]*points[i][1]) for i in range(n))
+                    div = (3.0 * cross_tot) if cross_tot != 0 else 1.0
+                    cx_i = cx_i / div
+                    cy_i = cy_i / div
+                    
+                    Ixo, Iyo = 0.0, 0.0
                     for i in range(n):
-                        x0, y0 = points[i]
-                        x1, y1 = points[(i + 1) % n]
+                        x0, y0 = points[i][0] - cx_i, points[i][1] - cy_i
+                        x1, y1 = points[(i + 1) % n][0] - cx_i, points[(i + 1) % n][1] - cy_i
                         cross = (x0 * y1 - x1 * y0)
-                        A_i += cross
-                        cx_i += (x0 + x1) * cross
-                        cy_i += (y0 + y1) * cross
+                        Ixo += (y0**2 + y0*y1 + y1**2) * cross
+                        Iyo += (x0**2 + x0*x1 + x1**2) * cross
                     
-                    A_calc = A_i / 2.0
-                    A_abs = abs(A_calc)
+                    Ixo = abs(Ixo) / 12.0
+                    Iyo = abs(Iyo) / 12.0
                     
-                    if A_abs > 0:
-                        cross_tot = sum((points[i][0]*points[(i+1)%n][1] - points[(i+1)%n][0]*points[i][1]) for i in range(n))
-                        div = (3.0 * cross_tot) if cross_tot != 0 else 1.0
-                        cx_i = cx_i / div
-                        cy_i = cy_i / div
-                        
-                        poligonos.append({
-                            'A': A_abs, 'cx': cx_i, 'cy': cy_i,
-                            'pts': points
-                        })
-    finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+                    poligonos.append({
+                        'A': A_abs, 'cx': cx_i, 'cy': cy_i,
+                        'Ixo': Ixo, 'Iyo': Iyo, 'pts': points
+                    })
 
     if not poligonos:
         return None
 
     poligonos.sort(key=lambda p: p['A'], reverse=True)
 
-    # 1. Baricentro Global Original (mm)
     if len(poligonos) >= 2:
         A_neto = poligonos[0]['A'] - sum(p['A'] for p in poligonos[1:])
         Cx_g = (poligonos[0]['A']*poligonos[0]['cx'] - sum(p['A']*p['cx'] for p in poligonos[1:])) / A_neto
         Cy_g = (poligonos[0]['A']*poligonos[0]['cy'] - sum(p['A']*p['cy'] for p in poligonos[1:])) / A_neto
+        
+        Jx_mm4 = (poligonos[0]['Ixo'] + poligonos[0]['A'] * ((poligonos[0]['cy'] - Cy_g)**2)) - \
+                 sum(p['Ixo'] + p['A'] * ((p['cy'] - Cy_g)**2) for p in poligonos[1:])
+                 
+        Jy_mm4 = (poligonos[0]['Iyo'] + poligonos[0]['A'] * ((poligonos[0]['cx'] - Cx_g)**2)) - \
+                 sum(p['Iyo'] + p['A'] * ((p['cx'] - Cx_g)**2) for p in poligonos[1:])
     else:
         A_neto = poligonos[0]['A']
         Cx_g = poligonos[0]['cx']
         Cy_g = poligonos[0]['cy']
-
-    # 2. Aplicar Rotación relativas al centroide
-    rad = math.radians(angulo_deg)
-    cos_a, sin_a = math.cos(rad), math.sin(rad)
-    
-    poligonos_rotados = []
-    for poly in poligonos:
-        pts_rot = []
-        for x, y in poly['pts']:
-            xr = x - Cx_g
-            yr = y - Cy_g
-            x_new = xr * cos_a - yr * sin_a
-            y_new = xr * sin_a + yr * cos_a
-            pts_rot.append((x_new, y_new))
-        
-        n = len(pts_rot)
-        Ixo_rot, Iyo_rot = 0.0, 0.0
-        for i in range(n):
-            x0, y0 = pts_rot[i]
-            x1, y1 = pts_rot[(i + 1) % n]
-            cross = (x0 * y1 - x1 * y0)
-            Ixo_rot += (y0**2 + y0*y1 + y1**2) * cross
-            Iyo_rot += (x0**2 + x0*x1 + x1**2) * cross
-        
-        poligonos_rotados.append({
-            'A': poly['A'],
-            'Ixo': abs(Ixo_rot) / 12.0,
-            'Iyo': abs(Iyo_rot) / 12.0,
-            'pts': pts_rot
-        })
-
-    # 3. Inercias Netas (cm4)
-    if len(poligonos_rotados) >= 2:
-        Jx_mm4 = poligonos_rotados[0]['Ixo'] - sum(p['Ixo'] for p in poligonos_rotados[1:])
-        Jy_mm4 = poligonos_rotados[0]['Iyo'] - sum(p['Iyo'] for p in poligonos_rotados[1:])
-    else:
-        Jx_mm4 = poligonos_rotados[0]['Ixo']
-        Jy_mm4 = poligonos_rotados[0]['Iyo']
+        Jx_mm4 = poligonos[0]['Ixo']
+        Jy_mm4 = poligonos[0]['Iyo']
 
     Jx_cm4 = abs(Jx_mm4) / 10000.0
     Jy_cm4 = abs(Jy_mm4) / 10000.0
 
-    # 4. Módulos resistentes Wx y Wy (cm3)
-    all_pts_x = [p[0] for poly in poligonos_rotados for p in poly['pts']]
-    all_pts_y = [p[1] for poly in poligonos_rotados for p in poly['pts']]
+    all_pts_x = [p[0] for poly in poligonos for p in poly['pts']]
+    all_pts_y = [p[1] for poly in poligonos for p in poly['pts']]
     
-    ymax_cm = max(abs(max(all_pts_y)), abs(min(all_pts_y))) / 10.0
-    xmax_cm = max(abs(max(all_pts_x)), abs(min(all_pts_x))) / 10.0
+    ymax_cm = max(abs(max(all_pts_y) - Cy_g), abs(min(all_pts_y) - Cy_g)) / 10.0
+    xmax_cm = max(abs(max(all_pts_x) - Cx_g), abs(min(all_pts_x) - Cx_g)) / 10.0
     
     Wx_cm3 = Jx_cm4 / ymax_cm if ymax_cm > 0 else Jx_cm4
     Wy_cm3 = Jy_cm4 / xmax_cm if xmax_cm > 0 else Jy_cm4
@@ -138,7 +121,7 @@ def procesar_dxf(uploaded_file, angulo_deg):
 
     return {
         'Jx': Jx_cm4, 'Jy': Jy_cm4, 'Wx': Wx_cm3, 'Wy': Wy_cm3,
-        'Pp': Pp_calc, 'poligonos': poligonos_rotados
+        'Pp': Pp_calc, 'poligonos': poligonos, 'Cx': Cx_g, 'Cy': Cy_g
     }
 
 # --- ENTRADA DE DATOS Y SELECCIÓN ---
@@ -164,39 +147,27 @@ if modo_geometria == "Paramétrica (Viga Cajón estándar)":
     fig.add_shape(type="rect", x0=-b/2, y0=-h/2 - esp_patin, x1=b/2, y1=-h/2, fillcolor="SteelBlue", line=dict(color="Black"))
     fig.add_shape(type="rect", x0=-b/2 + dl, y0=-h/2, x1=-b/2 + dl + esp_alma, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
     fig.add_shape(type="rect", x0=b/2 - dl - esp_alma, y0=-h/2, x1=b/2 - dl, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
-    fig.update_layout(
-        yaxis=dict(scaleanchor="x", scaleratio=1),
-        showlegend=False
-    )
+    fig.update_layout(xaxis=dict(range=[-b*0.7, b*0.7]), yaxis=dict(range=[-h*0.7, h*0.7]))
 
 else:
     st.sidebar.subheader("📁 Cargar Archivo DXF")
     uploaded_dxf = st.sidebar.file_uploader("Seleccione el archivo .dxf dibujado en mm", type=["dxf"])
     
-    angulo_rotacion = st.sidebar.slider("🔄 Rotar Sección Transversal [grados]", min_value=0, max_value=360, value=90, step=15)
-    
     if uploaded_dxf is not None:
         try:
-            res = procesar_dxf(uploaded_dxf, angulo_rotacion)
+            res = procesar_dxf(uploaded_dxf)
             if res:
                 Jx, Jy, Wx, Wy, Pp = res['Jx'], res['Jy'], res['Wx'], res['Wy'], res['Pp']
-                st.sidebar.success(f"✅ DXF procesado | Rotación: {angulo_rotacion}°")
+                st.sidebar.success("✅ DXF procesado correctamente")
                 
                 for idx, poly in enumerate(res['poligonos']):
                     pts = poly['pts']
-                    xs = [p[0] for p in pts] + [pts[0][0]]
-                    ys = [p[1] for p in pts] + [pts[0][1]]
+                    xs = [p[0] - res['Cx'] for p in pts] + [pts[0][0] - res['Cx']]
+                    ys = [p[1] - res['Cy'] for p in pts] + [pts[0][1] - res['Cy']]
                     fill_type = "toself" if idx == 0 else "none"
                     color_line = "Black" if idx == 0 else "Red"
                     fig.add_trace(go.Scatter(x=xs, y=ys, fill=fill_type, fillcolor="LightSteelBlue", line=dict(color=color_line), mode="lines", name=f"Polígono {idx+1}"))
-                
-                # FIJAR ESCALA 1:1 EN PLOTLY SIN DEFORMACIÓN
-                fig.update_layout(
-                    yaxis=dict(scaleanchor="x", scaleratio=1, title="y [mm]"),
-                    xaxis=dict(title="x [mm]"),
-                    showlegend=False,
-                    height=550
-                )
+                fig.update_layout(showlegend=False)
             else:
                 st.sidebar.error("No se encontraron polilíneas cerradas en el DXF.")
         except Exception as e:
@@ -279,5 +250,62 @@ with col1:
     st.write(f"- **Peso propio viga:** {Pp:.2f} kgf/m")
 
 with col2:
-    st.subheader("📐 Geometría Transversal (Escala Real 1:1)")
+    st.subheader("📐 Geometría Transversal")
     st.plotly_chart(fig, use_container_width=True)
+# =======================================================
+# MÓDULO DE SELECCIÓN DE CABLES Y POLEAS
+# =======================================================
+st.markdown("---")
+st.header("⚙️ Selección y Verificación de Cables y Poleas")
+
+# Controles de entrada
+col1_c, col2_c, col3_c = st.columns(3)
+with col1_c:
+    q_ingresada = st.number_input("Carga Útil [kgf]", value=10000.0)
+with col2_c:
+    peso_pap = st.number_input("Peso Aparejo [kgf]", value=200.0)
+with col3_c:
+    ramales = st.selectbox("Número de Ramales", [2, 4, 6, 8], index=1)
+
+# Consulta al módulo de cables
+S_max, F_req, tabla_resultados = verificar_tabla_cables(
+    Q_kg=q_ingresada, 
+    P_ap_kg=peso_pap, 
+    num_ramales=ramales, 
+    grupo_mecanismo='II'
+)
+
+st.subheader(f"Tracción Máxima por Ramal ($S_{{max}}$): {S_max:.2f} kgf")
+st.dataframe(tabla_resultados, use_container_width=True)
+st.markdown("---")
+st.header("⚙️ Selección y Comparativa de Cables (Estándar vs. verope)")
+
+# ... (resto de tus controles de entrada en Streamlit) ...
+st.markdown("---")
+st.header("⚙️ Selección y Evaluación Técnica de Cables (DIN 4130)")
+
+col1_c, col2_c, col3_c, col4_c = st.columns([2, 2, 2, 3])
+
+with col1_c:
+    q_ingresada = st.number_input("Carga Útil [kgf]", value=20000.0, step=1000.0)
+
+with col2_c:
+    ramales = st.selectbox("Número de Ramales", [2, 4, 6, 8], index=2)
+
+with col3_c:
+    grupo_din = st.selectbox("Grupo DIN 4130", ['I', 'II', 'III', 'IV', 'V'], index=2)
+
+with col4_c:
+    filtro = st.radio("Filtro de Selección", ['Solo Recomendados', 'Verificados (Óptimos y Sobredimensionados)', 'Todos'], index=0)
+
+# Consulta al módulo
+S_max, F_req, tabla_resultados = verificar_tabla_cables(
+    Q_kg=q_ingresada, 
+    P_ap_kg=200.0, 
+    num_ramales=ramales, 
+    grupo_mecanismo=grupo_din,
+    filtro_estado=filtro
+)
+
+st.subheader(f"Tracción Máxima por Ramal ($S_{{max}}$): {S_max:.2f} kgf")
+st.dataframe(tabla_resultados, use_container_width=True)
