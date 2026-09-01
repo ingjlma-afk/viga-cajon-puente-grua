@@ -414,7 +414,7 @@ col_t1, col_t2, col_t3 = st.columns(3)
 with col_t1:
     tipo_polipasto = st.selectbox("Configuración de Polipasto", ["Gemelo (4/2 o 2/2)", "Simple (2/1 o 4/1)"])
 with col_t2:
-    H_elevacion = st.number_input("Altura de Elevación [m]", value=8.0, step=1.0)
+     H_elevacion = st.number_input("Altura de Elevación [m]", value=8.0, step=1.0, key="h_elev_tambor")
 with col_t3:
     # Toma el diámetro del cable seleccionado o uno por defecto
     d_cable_sel = st.number_input("Diámetro de Cable Seleccionado [mm]", value=14.0, step=1.0)
