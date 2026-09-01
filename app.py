@@ -70,20 +70,27 @@ Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
 # --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (COMPATIBLE CON DXF BINARIOS) ---
+import tempfile
+import os
+from ezdxf import recover
+
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (LECTURA BINARIA FORZADA) ---
 def procesar_dxf(uploaded_file):
-    raw_bytes = uploaded_file.getvalue()
-    
-    # 1. Intento de lectura binaria nativa (SolidWorks / AutoCAD Binary DXF)
+    # Crear un archivo temporal físico para que ezdxf use el parser C nativo
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.dxf') as tmp:
+        tmp.write(uploaded_file.getvalue())
+        tmp_path = tmp.name
+
     try:
-        doc = ezdxf.read(io.BytesIO(raw_bytes))
+        # ezdxf.recover es capaz de leer DXF Binarios y corregir errores de estructura
+        doc, auditor = recover.readfile(tmp_path)
     except Exception:
-        # 2. Respaldo para DXF ASCII antiguo
-        try:
-            content_str = raw_bytes.decode('utf-8', errors='ignore')
-        except Exception:
-            content_str = raw_bytes.decode('latin-1', errors='ignore')
-        doc = ezdxf.read(io.StringIO(content_str))
-        
+        # Respaldo con lectura estándar si falla la recuperación
+        doc = ezdxf.readfile(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+            
     msp = doc.modelspace()
     poligonos = []
     
