@@ -49,7 +49,7 @@ st.markdown("""
     <div class="header-utn">
         <h1 style="margin:0; font-size: 28px;">🏗️ Plataforma de Cálculo e Ingeniería de Puentes Grúa</h1>
         <p style="margin:5px 0 0 0; opacity: 0.9;">
-            Desarrollado por Ingenieros Electromecánicos — <strong>UTN Facultad Regional Resistencia</strong>
+            Desarrollado por Electromecánicos — <strong>UTN Facultad Regional Resistencia</strong>
         </p>
     </div>
 """, unsafe_allow_html=True)
@@ -404,6 +404,6 @@ st.info(f"💡 **Peso total acumulado del conjunto de elevación (Carro + Tambor
 st.markdown("""
     <div class="footer-utn">
         <strong>Universidad Tecnológica Nacional — Facultad Regional Resistencia</strong><br>
-        Departamento de Ingeniería Electromecánica | Cátedra de Elementos de Máquinas y Transporte
+        Departamento de Ingeniería Electromecánica | Cátedra de Máquinas y Equipos de Transporte
     </div>
 """, unsafe_allow_html=True)
