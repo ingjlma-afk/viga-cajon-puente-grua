@@ -1,3 +1,58 @@
+import streamlit as st
+
+# Configuración de página con título e icono
+st.set_page_config(
+    page_title="Calculadora de Puentes Grúa | UTN FRRE",
+    page_icon="🏗️",
+    layout="wide"
+)
+
+# Inyección de CSS para personalizar el diseño
+st.markdown("""
+    <style>
+    /* Fondo principal con un tono gris técnico suave */
+    .stApp {
+        background-color: #f8fafc;
+    }
+    
+    /* Encabezado institucional personalizado */
+    .header-utn {
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+        color: white;
+        padding: 20px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    /* Estilo para tarjetas de métricas */
+    div[data-testid="stMetricValue"] {
+        font-size: 22px;
+        color: #1e3a8a;
+        font-weight: bold;
+    }
+    
+    /* Pie de página institucional */
+    .footer-utn {
+        text-align: center;
+        padding: 15px;
+        margin-top: 50px;
+        border-top: 1px solid #e2e8f0;
+        color: #64748b;
+        font-size: 13px;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+# Encabezado visual en pantalla
+st.markdown("""
+    <div class="header-utn">
+        <h1 style="margin:0; font-size: 28px;">🏗️ Plataforma de Cálculo e Ingeniería de Puentes Grúa</h1>
+        <p style="margin:5px 0 0 0; opacity: 0.9;">
+            Desarrollado por Ingenieros Electromecánicos — <strong>UTN Facultad Regional Resistencia</strong>
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 from modulo_cables import verificar_tabla_cables
 from modulo_cables import verificar_tabla_cables
 import streamlit as st
@@ -309,3 +364,46 @@ S_max, F_req, tabla_resultados = verificar_tabla_cables(
 
 st.subheader(f"Tracción Máxima por Ramal ($S_{{max}}$): {S_max:.2f} kgf")
 st.dataframe(tabla_resultados, use_container_width=True)
+from modulo_tambor import calcular_dimensiones_tambor
+
+# =======================================================
+# MÓDULO DE DIMENSIONAMIENTO DE TAMBOR Y POLIPASTO
+# =======================================================
+st.markdown("---")
+st.header("🛞 Dimensionamiento del Tambor y Peso Acumulado")
+
+col_t1, col_t2, col_t3 = st.columns(3)
+
+with col_t1:
+    tipo_polipasto = st.selectbox("Tipo de Polipasto", ["Gemelo (4/2 o 2/2)", "Simple (2/1 o 4/1)"])
+with col_t2:
+    H_elevacion = st.number_input("Altura de Elevación [m]", value=8.0, step=1.0)
+with col_t3:
+    d_seleccionado = st.number_input("Diámetro del Cable Elegido [mm]", value=14.0, step=1.0)
+
+# Ejecuta el cálculo del tambor
+res_tambor = calcular_dimensiones_tambor(
+    d_cable_mm=d_seleccionado, 
+    H_elevacion_m=H_elevacion, 
+    num_ramales=4, 
+    tipo_polipasto=tipo_polipasto
+)
+
+# Muestra de resultados del tambor
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Diámetro Tambor", f"{res_tambor['D_tambor_mm']} mm")
+c2.metric("Largo Tambor", f"{res_tambor['L_total_tambor_mm']} mm")
+c3.metric("Peso del Cable", f"{res_tambor['peso_cable_kg']} kgf")
+c4.metric("Peso Est. Tambor", f"{res_tambor['peso_tambor_kg']} kgf")
+
+# =======================================================
+# SUMATORIA DE PESO DEL CARRO (Para recargar la viga)
+# =======================================================
+peso_mecanismos_estimado = res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + 250.0  # 250kg est. motor+reductor
+st.info(f"💡 **Peso total acumulado del conjunto de elevación (Carro + Tambor + Cable + Mecanismos):** ≈ {peso_mecanismos_estimado:.1f} kgf")
+st.markdown("""
+    <div class="footer-utn">
+        <strong>Universidad Tecnológica Nacional — Facultad Regional Resistencia</strong><br>
+        Departamento de Ingeniería Electromecánica | Cátedra de Elementos de Máquinas y Transporte
+    </div>
+""", unsafe_allow_html=True)
