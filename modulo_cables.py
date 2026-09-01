@@ -1,80 +1,57 @@
 import math
 
-def obtener_catalogo_ampliado():
-    diametros = [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 32]
-    catalogo = []
+def calcular_dimensiones_tambor(d_cable_mm, H_elevacion_m, num_ramales=4, tipo_polipasto='Gemelo'):
+    """
+    Calcula las dimensiones del tambor y el peso REAL del cable según DIN 15020.
+    Incluye vueltas de seguridad, fijación y ramales de aparejo.
+    """
+    # 1. Diámetro mínimo del tambor (Relación D/d ≈ 20 para Grupo III)
+    D_tambor_mm = math.ceil((d_cable_mm * 20.0) / 5.0) * 5.0  # Normalizado a múltiplos de 5
+    D_tambor_m = D_tambor_mm / 1000.0
     
-    for d in diametros:
-        # Clásico 160 kg/mm² (Alma de fibra)
-        f_rot_160 = round(0.54 * (d**2) * 160 * 0.00980665, 1)
-        catalogo.append({"id": f"C160-{d}", "linea": "Clásico DIN 655 (160 kg/mm²)", "diam_mm": d, "F_rotura_kN": f_rot_160, "factor_h1": 20})
+    # 2. Longitud Total de Cable Requerida
+    # Ramales activos que bajan y suben
+    L_util = H_elevacion_m * num_ramales
+    
+    # Vueltas de seguridad en el tambor (Mínimo 3 vueltas por lado que nunca se desenrollan)
+    vueltas_seguridad_lado = 3
+    salidas_tambor = 2 if tipo_polipasto == 'Gemelo' else 1
+    L_seguridad = salidas_tambor * (vueltas_seguridad_lado + 1) * math.pi * D_tambor_m
+    
+    # Tramo adicional para fijaciones y paso por poleas superiores
+    L_extra_mecanismo = 4.0 
+    
+    L_cable_total_m = L_util + L_seguridad + L_extra_mecanismo
+    
+    # 3. Peso Específico Real del Cable de Acero (kg/m)
+    # Para cables norma DIN/verope con alma de acero: q ≈ 0.0042 * d^2 [kg/m]
+    peso_lineal_kg_m = 0.0042 * (d_cable_mm ** 2)  # Para d=14mm -> ~0.823 kg/m
+    peso_cable_kg = L_cable_total_m * peso_lineal_kg_m
+    
+    # 4. Dimensionamiento del Tambor Ranurado
+    vueltas_utiles_lado = (H_elevacion_m * (num_ramales / salidas_tambor)) / (math.pi * D_tambor_m)
+    vueltas_totales_lado = vueltas_utiles_lado + vueltas_seguridad_lado + 1
+    
+    paso_p = d_cable_mm * 1.15  # Paso de la ranura
+    L_ranurada_lado_mm = vueltas_totales_lado * paso_p
+    
+    if tipo_polipasto == 'Gemelo':
+        L_central_libre_mm = d_cable_mm * 10.0  # Zona neutra central
+        L_total_tambor_mm = (2 * L_ranurada_lado_mm) + L_central_libre_mm + (2 * d_cable_mm * 3)
+    else:
+        L_total_tambor_mm = L_ranurada_lado_mm + (2 * d_cable_mm * 5)
         
-        # Clásico 180 kg/mm² (Alma de acero)
-        f_rot_180 = round(0.58 * (d**2) * 180 * 0.00980665, 1)
-        catalogo.append({"id": f"C180-{d}", "linea": "Clásico DIN 655 (180 kg/mm²)", "diam_mm": d, "F_rotura_kN": f_rot_180, "factor_h1": 20})
-        
-        # verope veropro 8 (200 kg/mm² - Compactado)
-        f_rot_200 = round(0.68 * (d**2) * 200 * 0.00980665, 1)
-        catalogo.append({"id": f"VERO200-{d}", "linea": "verope veropro 8 (200 kg/mm²)", "diam_mm": d, "F_rotura_kN": f_rot_200, "factor_h1": 16})
-        
-        # verope verotop (220 kg/mm² - Antigiratorio)
-        f_rot_220 = round(0.72 * (d**2) * 220 * 0.00980665, 1)
-        catalogo.append({"id": f"VERO220-{d}", "linea": "verope verotop (220 kg/mm²)", "diam_mm": d, "F_rotura_kN": f_rot_220, "factor_h1": 15})
-        
-    return catalogo
-
-def verificar_tabla_cables(Q_kg, P_ap_kg, num_ramales, grupo_mecanismo='III', filtro_estado='Todos'):
-    # Rangos de la TABLA 3 (DIN 4130) [v_min, v_max]
-    rangos_din_4130 = {
-        'I':   (5.5, 6.0),
-        'II':  (5.5, 6.0),
-        'III': (6.0, 7.0),
-        'IV':  (7.0, 8.0),
-        'V':   (8.0, 9.5)
+    # Estimación de Peso del Tambor de Chapa de Acero Espesores Estándar
+    # Tubo de acero con tapas de acoplamiento
+    espesor_tubo_mm = max(10.0, d_cable_mm * 0.8)
+    volumen_tubo_cm3 = math.pi * (D_tambor_mm / 10.0) * (espesor_tubo_mm / 10.0) * (L_total_tambor_mm / 10.0)
+    peso_tambor_kg = (volumen_tubo_cm3 * 0.00785) * 1.35  # Coeficiente por tapas y eje
+    
+    return {
+        "D_tambor_mm": D_tambor_mm,
+        "L_total_tambor_mm": round(L_total_tambor_mm, 1),
+        "L_cable_total_m": round(L_cable_total_m, 2),
+        "peso_lineal_kg_m": round(peso_lineal_kg_m, 3),
+        "peso_cable_kg": round(peso_cable_kg, 1),
+        "peso_tambor_kg": round(peso_tambor_kg, 1)
     }
-    
-    v_min, v_max = rangos_din_4130.get(grupo_mecanismo, (6.0, 7.0))
-    eta_polipasto = 0.95
-    
-    # Tracción real por ramal
-    S_max_kgf = (Q_kg + P_ap_kg) / (num_ramales * eta_polipasto)
-    S_max_kN = (S_max_kgf * 9.80665) / 1000.0
-    
-    catalogo = obtener_catalogo_ampliado()
-    resultados = []
-    
-    for cable in catalogo:
-        coef_real = round(cable["F_rotura_kN"] / S_max_kN, 2)
-        
-        # Evaluación en 3 estados
-        if coef_real < v_min:
-            estado = "❌ NO CUMPLE (Insuficiente)"
-            categoria = "No Cumple"
-        elif v_min <= coef_real <= v_max:
-            estado = "✅ RECOMENDADO (Óptimo DIN)"
-            categoria = "Recomendado"
-        else:
-            estado = "⚠️ NO CONVIENE (Sobredimensionado)"
-            categoria = "Sobredimensionado"
-            
-        # Filtros para la vista del usuario
-        if filtro_estado == 'Solo Recomendados' and categoria != 'Recomendado':
-            continue
-        elif filtro_estado == 'Verificados (Óptimos y Sobredimensionados)' and categoria == 'No Cumple':
-            continue
-            
-        D_polea = cable["diam_mm"] * cable["factor_h1"]
-        D_tambor = round(D_polea * 0.9, 0)
-        
-        resultados.append({
-            "Línea / Tecnología": cable["linea"],
-            "Diámetro [mm]": cable["diam_mm"],
-            "F. Rotura Cat. [kN]": cable["F_rotura_kN"],
-            "Coeff. Seg. Real": coef_real,
-            "Rango DIN Búsqueda": f"{v_min} - {v_max}",
-            "D_min Polea [mm]": D_polea,
-            "D_min Tambor [mm]": D_tambor,
-            "Evaluación": estado
-        })
-        
-    return S_max_kgf, (S_max_kN * v_min), resultados
