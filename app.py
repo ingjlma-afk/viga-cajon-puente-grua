@@ -8,7 +8,7 @@ import ezdxf
 from ezdxf import recover
 
 # Importación de módulos propios
-ffrom modulo_cables import obtener_tabla_cables_completa, seleccionar_cable_mecanismo
+from modulo_cables import obtener_tabla_cables_completa, seleccionar_cable_mecanismo
 from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
 
 # Configuración de página con título e icono
