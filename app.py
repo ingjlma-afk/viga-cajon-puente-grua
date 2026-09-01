@@ -69,24 +69,37 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (BLINDADO CONTRA BINARIOS) ---
+import tempfile
+import os
+
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (SOPORTE TOTAL BINARIO / SOLIDWORKS) ---
 def procesar_dxf(uploaded_file):
-    raw_bytes = uploaded_file.getvalue()
-    
-    # Intento 1: Carga directa de bytes (DXF Binarios de SolidWorks/AutoCAD)
+    # Guardamos temporalmente el archivo subido para que ezdxf lo procese de forma nativa
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".dxf") as tmp_file:
+        tmp_file.write(uploaded_file.getvalue())
+        tmp_path = tmp_file.name
+
     try:
-        doc = ezdxf.read(io.BytesIO(raw_bytes))
+        # Intento 1: Lectura nativa directa desde archivo (detecta ASCII o Binario de SolidWorks)
+        doc = ezdxf.readfile(tmp_path)
     except Exception:
-        # Intento 2: Carga en texto para versiones antiguas ASCII
         try:
-            content_str = raw_bytes.decode('utf-8', errors='ignore')
-        except Exception:
-            content_str = raw_bytes.decode('latin-1', errors='ignore')
-        doc = ezdxf.read(io.StringIO(content_str))
-        
+            # Intento 2: Recuperación de archivos complejos o corruptos
+            from ezdxf import recover
+            doc, _ = recover.readfile(tmp_path)
+        except Exception as e:
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+            raise e
+    finally:
+        # Limpieza del archivo temporal
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
     msp = doc.modelspace()
     poligonos = []
     
+    # Extraer polilíneas cerradas del DXF
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             points = [(p[0], p[1]) for p in entity.get_points()]
@@ -166,58 +179,6 @@ def procesar_dxf(uploaded_file):
         'Jx': Jx_cm4, 'Jy': Jy_cm4, 'Wx': Wx_cm3, 'Wy': Wy_cm3,
         'Pp': Pp_calc, 'poligonos': poligonos, 'Cx': Cx_g, 'Cy': Cy_g
     }
-
-# --- ENTRADA DE DATOS Y GEOMETRÍA ---
-if modo_geometria == "Paramétrica (Viga Cajón estándar)":
-    with st.sidebar.expander("📐 Geometría Cajón", expanded=True):
-        b = st.number_input("Ancho viga (b) [mm]", value=500.0, step=10.0)
-        h = st.number_input("Altura viga (h) [mm]", value=1000.0, step=10.0)
-        esp_patin = st.number_input("Espesor de ala [mm]", value=9.525, step=0.1)
-        esp_alma = st.number_input("Espesor de almas [mm]", value=9.525, step=0.1)
-        dl = st.number_input("Retranqueo del alma (dl) [mm]", value=50.0, step=5.0)
-
-    b_cm, h_cm = b/10, h/10
-    esp_p_cm, esp_a_cm = esp_patin/10, esp_alma/10
-    dl_cm = dl/10
-    
-    Jx = 2 * ((esp_a_cm * (h_cm**3))/12 + (b_cm * (esp_p_cm**3))/12 + b_cm * esp_p_cm * ((h_cm + esp_p_cm)/2)**2)
-    Wx = Jx / (h_cm/2 + esp_p_cm)
-    Jy = 2 * ((esp_p_cm * (b_cm**3))/12 + (h_cm * (esp_a_cm**3))/12 + ((b_cm/2 - dl_cm - esp_a_cm/2)**2) * h_cm * esp_a_cm)
-    Wy = Jy / (b_cm/2)
-    Pp = (2 * (b/1000) * (esp_patin/1000) + 2 * (h/1000) * (esp_alma/1000)) * 7860.0
-
-    fig.add_shape(type="rect", x0=-b/2, y0=h/2, x1=b/2, y1=h/2 + esp_patin, fillcolor="SteelBlue", line=dict(color="Black"))
-    fig.add_shape(type="rect", x0=-b/2, y0=-h/2 - esp_patin, x1=b/2, y1=-h/2, fillcolor="SteelBlue", line=dict(color="Black"))
-    fig.add_shape(type="rect", x0=-b/2 + dl, y0=-h/2, x1=-b/2 + dl + esp_alma, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
-    fig.add_shape(type="rect", x0=b/2 - dl - esp_alma, y0=-h/2, x1=b/2 - dl, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
-    fig.update_layout(xaxis=dict(range=[-b*0.7, b*0.7]), yaxis=dict(range=[-h*0.7, h*0.7]))
-
-else:
-    st.sidebar.subheader("📁 Cargar Archivo DXF")
-    uploaded_dxf = st.sidebar.file_uploader("Seleccione el archivo .dxf dibujado en mm", type=["dxf"])
-    
-    if uploaded_dxf is not None:
-        try:
-            res = procesar_dxf(uploaded_dxf)
-            if res:
-                Jx, Jy, Wx, Wy, Pp = res['Jx'], res['Jy'], res['Wx'], res['Wy'], res['Pp']
-                st.sidebar.success("✅ DXF procesado correctamente")
-                
-                for idx, poly in enumerate(res['poligonos']):
-                    pts = poly['pts']
-                    xs = [p[0] - res['Cx'] for p in pts] + [pts[0][0] - res['Cx']]
-                    ys = [p[1] - res['Cy'] for p in pts] + [pts[0][1] - res['Cy']]
-                    fill_type = "toself" if idx == 0 else "none"
-                    color_line = "Black" if idx == 0 else "Red"
-                    fig.add_trace(go.Scatter(x=xs, y=ys, fill=fill_type, fillcolor="LightSteelBlue", line=dict(color=color_line), mode="lines", name=f"Polígono {idx+1}"))
-                fig.update_layout(showlegend=False)
-            else:
-                st.sidebar.error("No se encontraron polilíneas cerradas en el DXF.")
-        except Exception as e:
-            st.sidebar.error(f"Error al procesar DXF: {e}")
-    else:
-        st.info("👈 Cargue el archivo .dxf desde la barra lateral para procesar la geometría.")
-
 # --- PARÁMETROS DE CARGA ÚNICA Y PARÁMETROS GENERALES ---
 with st.sidebar.expander("🌉 Geometría del Puente y Cargas", expanded=True):
     Luz = st.number_input("Luz del puente (L) [m]", value=20.0, step=1.0)
