@@ -222,8 +222,21 @@ else:
                     ys = [p[1] - res_dxf['Cy'] for p in pts] + [pts[0][1] - res_dxf['Cy']]
                     fill_type = "toself" if idx == 0 else "none"
                     color_line = "Black" if idx == 0 else "Red"
-                    fig.add_trace(go.Scatter(x=xs, y=ys, fill=fill_type, fillcolor="LightSteelBlue", line=dict(color=color_line), mode="lines", name=f"Polígono {idx+1}"))
-                fig.update_layout(showlegend=False)
+                    fig.add_trace(go.Scatter(
+                        x=xs, y=ys, 
+                        fill=fill_type, 
+                        fillcolor="LightSteelBlue", 
+                        line=dict(color=color_line), 
+                        mode="lines", 
+                        name=f"Polígono {idx+1}"
+                    ))
+                
+                # FORZAR ESCALA 1:1 EN AMBOS EJES PARA VER EL GIRO REAL
+                fig.update_layout(
+                    showlegend=False,
+                    yaxis=dict(scaleanchor="x", scaleratio=1),
+                    xaxis=dict(constrain="domain")
+                )
             else:
                 st.sidebar.error("No se encontraron polilíneas cerradas en el DXF.")
         except Exception as e:
