@@ -259,6 +259,13 @@ with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
     grupo_din = st.selectbox("Grupo DIN 4130", ['I', 'II', 'III', 'IV', 'V'], index=2)
     ve_m_min = st.number_input("Velocidad de elevación [m/min]", value=8.0, step=0.5)
     he = st.number_input("Altura de elevación [m]", value=8.0, step=1.0)
+    
+    st.markdown("---")
+    st.markdown("**📉 Rendimientos Mecánicos (DIN 15020)**")
+    eta_poleas = st.number_input("Rendimiento Aparejo/Poleas (η_p)", value=0.97, min_value=0.80, max_value=0.99, step=0.01, help="Rodamientos: 0.97-0.98 | Bujes: 0.93-0.95")
+    eta_tambor = st.number_input("Rendimiento Tambor (η_t)", value=0.98, min_value=0.90, max_value=1.00, step=0.01)
+    eta_reductor = st.number_input("Rendimiento Reductor (η_r)", value=0.93, min_value=0.50, max_value=0.98, step=0.01, help="Engranajes Cilíndricos/Helicoidales: 0.92-0.96 | Corona y Sinfín: 0.60-0.75")
+
     phi = st.number_input("Coeficiente de choque (ϕ)", value=1.1, step=0.05)
     psi = st.number_input("Coeficiente de mayoración (ψ)", value=1.6, step=0.05)
     sigma_adm_v = st.number_input("σ admisible vertical [kgf/cm²]", value=1400.0)
@@ -365,6 +372,37 @@ st.markdown("---")
 st.header("⚙️ Selección y Evaluación Técnica de Cables (DIN 4130)")
 st.subheader(f"Tracción Máxima por Ramal ($S_{{max}}$): {S_max:.2f} kgf | Cable Recomendado: {d_cable_sel} mm")
 st.dataframe(tabla_cables, use_container_width=True)
+
+from modulo_motor import calcular_motor_reductor
+
+# =======================================================
+# MÓDULO DE MOTORIZACIÓN Y REDUCTOR
+# =======================================================
+st.markdown("---")
+st.header("⚡ Selección del Grupo Motorreductor de Elevación")
+
+res_motor = calcular_motor_reductor(
+    carga_total_kg=CARGA_TOTAL_ACTUANTE,
+    v_elev_m_min=ve_m_min,
+    D_tambor_mm=res_tambor['D_tambor_mm'],
+    num_ramales=num_ramales,
+    eta_poleas=eta_poleas,
+    eta_tambor=eta_tambor,
+    eta_reductor=eta_reductor
+)
+
+col_m1, col_m2, col_m3, col_m4 = st.columns(4)
+col_m1.metric("Rendimiento Global (η)", f"{res_motor['eta_global']} %")
+col_m2.metric("Potencia Absorbida", f"{res_motor['potencia_teorica_kw']} kW")
+col_m3.metric("Motor IEC Recomendado", f"{res_motor['potencia_motor_kw']} kW")
+col_m4.metric("Relación Reducción (i)", f"{res_motor['i_reductor']}:1")
+
+st.info(f"""
+💡 **Análisis Cinemático:**  
+* **Potencia útil neta en gancho:** {res_motor['potencia_util_kw']} kW  
+* **Pérdidas acumuladas por rozamiento:** {res_motor['potencia_teorica_kw'] - res_motor['potencia_util_kw']:.2f} kW  
+* **Torque en el eje del tambor:** {res_motor['torque_tambor_Nm']} N·m a {res_motor['n_tambor_rpm']} rpm.
+""")
 
 # Pie de Página
 st.markdown("""
