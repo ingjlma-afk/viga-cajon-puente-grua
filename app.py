@@ -413,11 +413,14 @@ col_t1, col_t2, col_t3 = st.columns(3)
 
 with col_t1:
     tipo_polipasto = st.selectbox("Configuración de Polipasto", ["Gemelo (4/2 o 2/2)", "Simple (2/1 o 4/1)"])
+
 with col_t2:
-     H_elevacion = st.number_input("Altura de Elevación [m]", value=8.0, step=1.0, key="h_elev_tambor")
+    # Toma la variable de altura definida arriba en la app, o usa 8.0 m si no existe
+    H_elevacion = float(H_elev) if 'H_elev' in locals() else (float(altura_elevacion) if 'altura_elevacion' in locals() else 8.0)
+    st.info(f"📏 **Altura de Elevación:** {H_elevacion:.1f} m")
+
 with col_t3:
-    # Toma el diámetro del cable seleccionado o uno por defecto
-    d_cable_sel = st.number_input("Diámetro de Cable Seleccionado [mm]", value=14.0, step=1.0)
+    d_cable_sel = st.number_input("Diámetro de Cable Seleccionado [mm]", value=14.0, step=1.0, key="d_cable_tambor_sel")
 
 # Carga útil y ramales definidos
 carga_q_actual = float(q_ingresada) if 'q_ingresada' in locals() else 10000.0
