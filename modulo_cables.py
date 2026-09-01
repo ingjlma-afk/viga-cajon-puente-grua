@@ -97,3 +97,8 @@ if __name__ == "__main__":
     fuerza, tabla_aptos = seleccionar_cable_mecanismo(2500)
     print(f"--- Módulo modulo_cable.py Cargas de Rotura Requeridas: {fuerza:.2f} kN ---")
     print(tabla_aptos[["Norma_Marca", "Composicion", "Diametro_mm", "Rotura_kN_1960"]].to_string())
+
+# Alias de compatibilidad directa para la línea 11 de app.py
+def verificar_tabla_cables(carga_kg=2500, cs=5.5):
+    """Función que llama app.py para obtener la tabla y verificación."""
+    return seleccionar_cable_mecanismo(carga_kg, cs)
