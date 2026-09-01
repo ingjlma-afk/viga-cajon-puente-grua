@@ -406,6 +406,15 @@ from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
 # =======================================================
 # MÓDULO DE DIMENSIONAMIENTO DEL TAMBOR Y SUMATORIA DE PESOS
 # =======================================================
+from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
+
+# Carga útil y ramales actuales
+carga_q_actual = float(q_ingresada) if 'q_ingresada' in locals() else (float(Q) if 'Q' in locals() else 10000.0)
+ramales_actual = int(ramales) if 'ramales' in locals() else 4
+
+# Estimación del peso de la pasteca
+peso_pasteca_calc = estimar_peso_pasteca(carga_q_actual, ramales_actual)
+
 st.markdown("---")
 st.header("🛞 Dimensionamiento del Tambor y Balance Acumulado de Cargas")
 
@@ -415,21 +424,13 @@ with col_t1:
     tipo_polipasto = st.selectbox("Configuración de Polipasto", ["Gemelo (4/2 o 2/2)", "Simple (2/1 o 4/1)"])
 
 with col_t2:
-    # Toma la variable de altura definida arriba en la app, o usa 8.0 m si no existe
     H_elevacion = float(H_elev) if 'H_elev' in locals() else (float(altura_elevacion) if 'altura_elevacion' in locals() else 8.0)
     st.info(f"📏 **Altura de Elevación:** {H_elevacion:.1f} m")
 
 with col_t3:
     d_cable_sel = st.number_input("Diámetro de Cable Seleccionado [mm]", value=14.0, step=1.0, key="d_cable_tambor_sel")
 
-# Carga útil y ramales definidos
-carga_q_actual = float(q_ingresada) if 'q_ingresada' in locals() else 10000.0
-ramales_actual = int(ramales) if 'ramales' in locals() else 4
-
-# Estimación del peso de la pasteca/gancho
-peso_pasteca_calc = estimar_peso_pasteca(carga_q_actual, ramales_actual)
-
-# Cálculo del tambor y cable
+# Cálculo geométrico del tambor y peso de cables
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel, 
     H_elevacion_m=H_elevacion, 
@@ -437,7 +438,11 @@ res_tambor = calcular_dimensiones_tambor(
     tipo_polipasto=tipo_polipasto
 )
 
-# Mapeo visual de los pesos componentes
+# Sumatoria de pesos reales del carro de elevación
+peso_carro_real = peso_pasteca_calc + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + 350.0
+P_total_solicitante = carga_q_actual + peso_carro_real
+
+# Mapeo visual de componentes
 st.subheader("📊 Desglose de Pesos del Mecanismo de Elevación")
 
 m1, m2, m3, m4 = st.columns(4)
@@ -446,15 +451,11 @@ m2.metric("Cable de Acero Total", f"{res_tambor['peso_cable_kg']:.1f} kgf")
 m3.metric("Tambor Ranurado", f"{res_tambor['peso_tambor_kg']:.1f} kgf")
 m4.metric("Motor/Reductor/Freno (Est.)", "350.0 kgf")
 
-# Sumatoria total que actuará sobre el puente
-peso_carro_completo = peso_pasteca_calc + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + 350.0
-carga_total_actuante = carga_q_actual + peso_carro_completo
-
 st.success(f"""
 ⚖️ **Carga Total Centralizada sobre la Viga Principal:**  
 * **Carga Útil ($Q$):** {carga_q_actual:.0f} kgf  
-* **Peso Propio del Carro y Mecanismos ($P_{{carro}}$):** {peso_carro_completo:.1f} kgf  
-* **Carga Solicitante Total ($P_{{total}}$):** **{carga_total_actuante:.1f} kgf**
+* **Peso Propio del Carro y Mecanismos ($P_{{carro}}$):** {peso_carro_real:.1f} kgf  
+* **Carga Solicitante Total ($P_{{total}}$):** **{P_total_solicitante:.1f} kgf**
 """)
 st.markdown("""
     <div class="footer-utn">
