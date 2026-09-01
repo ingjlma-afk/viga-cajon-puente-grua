@@ -69,16 +69,21 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (CÓDIGO ORIGINAL QUE FUNCIONABA) ---
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (COMPATIBLE CON DXF BINARIOS) ---
 def procesar_dxf(uploaded_file):
     raw_bytes = uploaded_file.getvalue()
+    
+    # 1. Intento de lectura binaria nativa (SolidWorks / AutoCAD Binary DXF)
     try:
-        content_str = raw_bytes.decode('utf-8', errors='ignore')
+        doc = ezdxf.read(io.BytesIO(raw_bytes))
     except Exception:
-        content_str = raw_bytes.decode('latin-1', errors='ignore')
+        # 2. Respaldo para DXF ASCII antiguo
+        try:
+            content_str = raw_bytes.decode('utf-8', errors='ignore')
+        except Exception:
+            content_str = raw_bytes.decode('latin-1', errors='ignore')
+        doc = ezdxf.read(io.StringIO(content_str))
         
-    stream = io.StringIO(content_str)
-    doc = ezdxf.read(stream)
     msp = doc.modelspace()
     poligonos = []
     
