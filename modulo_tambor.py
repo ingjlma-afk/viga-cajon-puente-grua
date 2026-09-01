@@ -1,69 +1,57 @@
 import math
 
-def estimar_peso_pasteca(carga_q_kg, num_ramales):
+def calcular_dimensiones_tambor(d_cable_mm, H_elevacion_m, num_ramales=4, tipo_polipasto='Gemelo'):
     """
-    Estima el peso del aparejo/pasteca (gancho + poleas de carga)
-    según la capacidad nominal Q y el número de ramales (DIN 15401).
+    Calcula las dimensiones del tambor y el peso REAL del cable según DIN 15020.
+    Incluye vueltas de seguridad, fijación y ramales de aparejo.
     """
-    carga_ton = carga_q_kg / 1000.0
-    if carga_ton <= 5:
-        peso_base = 120 + (num_ramales * 12)
-    elif carga_ton <= 10:
-        peso_base = 220 + (num_ramales * 20)
-    elif carga_ton <= 20:
-        peso_base = 450 + (num_ramales * 35)
-    elif carga_ton <= 35:
-        peso_base = 750 + (num_ramales * 50)
-    else:
-        peso_base = 1100 + (num_ramales * 70)
-    return float(peso_base)
-
-def calcular_dimensiones_tambor(d_cable_mm, H_elevacion_m, num_ramales=4, tipo_polipasto='Gemelo (4/2 o 2/2)', h1_factor=18):
-    """
-    Calcula el dimensionamiento geométrico del tambor ranurado, 
-    longitud y peso del cable de acero.
-    """
-    # 1. Diámetro mínimo y normalizado del tambor
-    D_min_tambor_mm = d_cable_mm * h1_factor
-    diametros_std = [160, 200, 250, 315, 400, 500, 630, 710, 800, 1000]
-    D_tambor_mm = min([d for d in diametros_std if d >= D_min_tambor_mm], default=D_min_tambor_mm)
-    
+    # 1. Diámetro mínimo del tambor (Relación D/d ≈ 20 para Grupo III)
+    D_tambor_mm = math.ceil((d_cable_mm * 20.0) / 5.0) * 5.0  # Normalizado a múltiplos de 5
     D_tambor_m = D_tambor_mm / 1000.0
     
-    # 2. Arrollamiento y longitud total de cable
-    es_gemelo = 'Gemelo' in tipo_polipasto
-    ramales_por_salida = num_ramales / 2.0 if es_gemelo else num_ramales
+    # 2. Longitud Total de Cable Requerida
+    # Ramales activos que bajan y suben
+    L_util = H_elevacion_m * num_ramales
     
-    L_arrollado_lado = H_elevacion_m * ramales_por_salida
-    L_total_cable = (H_elevacion_m * num_ramales) + 6.0  # +6m para vueltas muertas, fijación y poleas
+    # Vueltas de seguridad en el tambor (Mínimo 3 vueltas por lado que nunca se desenrollan)
+    vueltas_seguridad_lado = 3
+    salidas_tambor = 2 if tipo_polipasto == 'Gemelo' else 1
+    L_seguridad = salidas_tambor * (vueltas_seguridad_lado + 1) * math.pi * D_tambor_m
     
-    # 3. Masa del cable (kg/m ≈ 0.0039 * d²)
-    peso_metro_kg = 0.0039 * (d_cable_mm**2)
-    peso_total_cable_kg = L_total_cable * peso_metro_kg
+    # Tramo adicional para fijaciones y paso por poleas superiores
+    L_extra_mecanismo = 4.0 
     
-    # 4. Geometría del tambor (DIN 15061)
-    paso_ranura_mm = d_cable_mm * 1.15
-    espiras_utiles = L_arrollado_lado / (math.pi * D_tambor_m)
-    espiras_totales = espiras_utiles + 3  # 3 espiras fijas de seguridad
+    L_cable_total_m = L_util + L_seguridad + L_extra_mecanismo
     
-    longitud_ranurada_lado_mm = espiras_totales * paso_ranura_mm
+    # 3. Peso Específico Real del Cable de Acero (kg/m)
+    # Para cables norma DIN/verope con alma de acero: q ≈ 0.0042 * d^2 [kg/m]
+    peso_lineal_kg_m = 0.0042 * (d_cable_mm ** 2)  # Para d=14mm -> ~0.823 kg/m
+    peso_cable_kg = L_cable_total_m * peso_lineal_kg_m
     
-    if es_gemelo:
-        L_centro_libre_mm = d_cable_mm * 10
-        L_total_tambor_mm = (2 * longitud_ranurada_lado_mm) + L_centro_libre_mm
+    # 4. Dimensionamiento del Tambor Ranurado
+    vueltas_utiles_lado = (H_elevacion_m * (num_ramales / salidas_tambor)) / (math.pi * D_tambor_m)
+    vueltas_totales_lado = vueltas_utiles_lado + vueltas_seguridad_lado + 1
+    
+    paso_p = d_cable_mm * 1.15  # Paso de la ranura
+    L_ranurada_lado_mm = vueltas_totales_lado * paso_p
+    
+    if tipo_polipasto == 'Gemelo':
+        L_central_libre_mm = d_cable_mm * 10.0  # Zona neutra central
+        L_total_tambor_mm = (2 * L_ranurada_lado_mm) + L_central_libre_mm + (2 * d_cable_mm * 3)
     else:
-        L_total_tambor_mm = longitud_ranurada_lado_mm + (d_cable_mm * 5)
+        L_total_tambor_mm = L_ranurada_lado_mm + (2 * d_cable_mm * 5)
         
-    # 5. Peso del tambor de acero
-    espesor_mm = max(10.0, D_tambor_mm * 0.08)
-    volumen_acero_m3 = math.pi * D_tambor_m * (espesor_mm / 1000.0) * (L_total_tambor_mm / 1000.0)
-    peso_estimado_tambor_kg = volumen_acero_m3 * 7850.0
+    # Estimación de Peso del Tambor de Chapa de Acero Espesores Estándar
+    # Tubo de acero con tapas de acoplamiento
+    espesor_tubo_mm = max(10.0, d_cable_mm * 0.8)
+    volumen_tubo_cm3 = math.pi * (D_tambor_mm / 10.0) * (espesor_tubo_mm / 10.0) * (L_total_tambor_mm / 10.0)
+    peso_tambor_kg = (volumen_tubo_cm3 * 0.00785) * 1.35  # Coeficiente por tapas y eje
     
     return {
         "D_tambor_mm": D_tambor_mm,
         "L_total_tambor_mm": round(L_total_tambor_mm, 1),
-        "L_total_cable_m": round(L_total_cable, 2),
-        "peso_cable_kg": round(peso_total_cable_kg, 2),
-        "peso_tambor_kg": round(peso_estimado_tambor_kg, 2),
-        "espiras_totales": round(espiras_totales, 1)
+        "L_cable_total_m": round(L_cable_total_m, 2),
+        "peso_lineal_kg_m": round(peso_lineal_kg_m, 3),
+        "peso_cable_kg": round(peso_cable_kg, 1),
+        "peso_tambor_kg": round(peso_tambor_kg, 1)
     }
