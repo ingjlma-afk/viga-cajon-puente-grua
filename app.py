@@ -19,12 +19,9 @@ st.set_page_config(
 # Inyección de CSS para personalizar el diseño
 st.markdown("""
     <style>
-    /* Fondo principal con un tono gris técnico suave */
     .stApp {
         background-color: #f8fafc;
     }
-    
-    /* Encabezado institucional personalizado */
     .header-utn {
         background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
         color: white;
@@ -33,15 +30,11 @@ st.markdown("""
         margin-bottom: 25px;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
-    
-    /* Estilo para tarjetas de métricas */
     div[data-testid="stMetricValue"] {
         font-size: 22px;
         color: #1e3a8a;
         font-weight: bold;
     }
-    
-    /* Pie de página institucional */
     .footer-utn {
         text-align: center;
         padding: 15px;
@@ -76,28 +69,24 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (Soporta ASCII y Binario) ---
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (BLINDADO CONTRA BINARIOS) ---
 def procesar_dxf(uploaded_file):
     raw_bytes = uploaded_file.getvalue()
     
-    # 1. Intento de lectura directa en bytes (Soporta DXF Binario de SolidWorks/AutoCAD)
+    # Intento 1: Carga directa de bytes (DXF Binarios de SolidWorks/AutoCAD)
     try:
-        stream_bytes = io.BytesIO(raw_bytes)
-        doc = ezdxf.read(stream_bytes)
+        doc = ezdxf.read(io.BytesIO(raw_bytes))
     except Exception:
-        # 2. Respaldo para DXF ASCII con codificación tolerante
+        # Intento 2: Carga en texto para versiones antiguas ASCII
         try:
             content_str = raw_bytes.decode('utf-8', errors='ignore')
         except Exception:
             content_str = raw_bytes.decode('latin-1', errors='ignore')
-            
-        stream_str = io.StringIO(content_str)
-        doc = ezdxf.read(stream_str)
+        doc = ezdxf.read(io.StringIO(content_str))
         
     msp = doc.modelspace()
     poligonos = []
     
-    # Extraer polilíneas cerradas del DXF
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             points = [(p[0], p[1]) for p in entity.get_points()]
@@ -250,14 +239,11 @@ with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
     sigma_adm_hv = st.number_input("σ admisible combinada [kgf/cm²]", value=1600.0)
     E = st.number_input("Módulo elástico E [kgf/cm²]", value=2100000.0)
 
-
 # =======================================================
 # CÁLCULOS MECÁNICOS AUTOMÁTICOS (Pasteca, Cables, Tambor)
 # =======================================================
-# 1. Estimación del aparejo
 peso_pasteca = estimar_peso_pasteca(Q, num_ramales)
 
-# 2. Selección de Cable según DIN 4130
 S_max, F_req, tabla_cables = verificar_tabla_cables(
     Q_kg=Q, 
     P_ap_kg=peso_pasteca, 
@@ -266,10 +252,8 @@ S_max, F_req, tabla_cables = verificar_tabla_cables(
     filtro_estado='Solo Recomendados'
 )
 
-# Toma el cable óptimo o uno por defecto (14mm)
 d_cable_sel = tabla_cables[0]["Diámetro [mm]"] if len(tabla_cables) > 0 else 14.0
 
-# 3. Dimensionamiento del Tambor
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel, 
     H_elevacion_m=he, 
@@ -277,17 +261,15 @@ res_tambor = calcular_dimensiones_tambor(
     tipo_polipasto='Gemelo'
 )
 
-# 4. SUMATORIA REAL DEL CARRO Y MECANISMOS
-peso_mecanismos_est = 350.0  # kgf est. (Motor + Reductor + Freno + Estructura Carro)
+peso_mecanismos_est = 350.0
 P_carro_real = peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + peso_mecanismos_est
 CARGA_TOTAL_ACTUANTE = Q + P_carro_real
-
 
 # =======================================================
 # CÁLCULO ESTRUCTURAL DE LA VIGA CON CARGA TOTAL
 # =======================================================
 Luz_cm, al_cm = Luz * 100.0, al / 10.0
-Pr = CARGA_TOTAL_ACTUANTE / 4.0  # Carga por rueda considerando la Carga Útil + Pesos Reales
+Pr = CARGA_TOTAL_ACTUANTE / 4.0
 Mpmax = Pr * ((Luz_cm - al_cm/2)**2) / (2 * Luz_cm)
 ge = Pp + 40.0
 Mg1 = (ge * (Luz**2) / 8.0) * 100.0
@@ -304,14 +286,12 @@ Mg2_H = Mg2 / 14.0
 sigma_Hv = sigma_v + (Mpmax_H + Mg1_H + Mg2_H) / Wy if Wy > 0 else 0.0
 f_real = (Pr * (Luz_cm - al_cm) * (Luz_cm**2 + (Luz_cm + al_cm)**2)) / (48 * E * Jx) if Jx > 0 else 0.0
 
-
 # --- INTERFAZ DE RESULTADOS ---
 col1, col2 = st.columns([1, 1])
 
 with col1:
     st.subheader("📊 Verificaciones Estructurales")
     
-    # Card σv
     verf_v = sigma_v <= sigma_adm_v if sigma_v > 0 else False
     color_border_v = "#1e8e3e" if verf_v else "#d93025"
     st.markdown(f"""
@@ -322,7 +302,6 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-    # Card σHv
     verf_hv = sigma_Hv <= sigma_adm_hv if sigma_Hv > 0 else False
     color_border_hv = "#1e8e3e" if verf_hv else "#d93025"
     st.markdown(f"""
@@ -333,7 +312,6 @@ with col1:
     </div>
     """, unsafe_allow_html=True)
 
-    # Propiedades Geométricas
     st.markdown("**Propiedades Geométricas Calculadas:**")
     st.write(f"- **Jx:** {Jx:.2f} cm⁴ | **Wx:** {Wx:.2f} cm³")
     st.write(f"- **Jy:** {Jy:.2f} cm⁴ | **Wy:** {Wy:.2f} cm³")
@@ -344,7 +322,7 @@ with col2:
     st.plotly_chart(fig, use_container_width=True)
 
 # =======================================================
-# MOSTRAR DESGROSE DE PESOS Y MÓDULO MECÁNICO
+# MOSTRAR DESGLOSE DE PESOS Y MÓDULO MECÁNICO
 # =======================================================
 st.markdown("---")
 st.header("🛞 Dimensionamiento del Tambor y Balance Acumulado de Cargas")
