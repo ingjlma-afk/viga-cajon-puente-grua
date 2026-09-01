@@ -1,8 +1,11 @@
 import streamlit as st
 import math
 import io
+import tempfile
+import os
 import plotly.graph_objects as go
 import ezdxf
+from ezdxf import recover
 
 # Importación de módulos propios
 from modulo_cables import verificar_tabla_cables
@@ -69,23 +72,15 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (COMPATIBLE CON DXF BINARIOS) ---
-import tempfile
-import os
-from ezdxf import recover
-
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (LECTURA BINARIA FORZADA) ---
-def procesar_dxf(uploaded_file):
-    # Crear un archivo temporal físico para que ezdxf use el parser C nativo
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF CON ROTACIÓN Y LECTURA BINARIA ---
+def procesar_dxf(uploaded_file, angulo_deg=0):
     with tempfile.NamedTemporaryFile(delete=False, suffix='.dxf') as tmp:
         tmp.write(uploaded_file.getvalue())
         tmp_path = tmp.name
 
     try:
-        # ezdxf.recover es capaz de leer DXF Binarios y corregir errores de estructura
         doc, auditor = recover.readfile(tmp_path)
     except Exception:
-        # Respaldo con lectura estándar si falla la recuperación
         doc = ezdxf.readfile(tmp_path)
     finally:
         if os.path.exists(tmp_path):
@@ -94,10 +89,16 @@ def procesar_dxf(uploaded_file):
     msp = doc.modelspace()
     poligonos = []
     
+    # Matriz de rotación en radianes
+    rad = math.radians(angulo_deg)
+    cos_a, sin_a = math.cos(rad), math.sin(rad)
+    
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
-            points = [(p[0], p[1]) for p in entity.get_points()]
-            if len(points) >= 3:
+            pts_orig = [(p[0], p[1]) for p in entity.get_points()]
+            if len(pts_orig) >= 3:
+                # Rotación de puntos sobre el centroide (0,0) de CAD
+                points = [(x * cos_a - y * sin_a, x * sin_a + y * cos_a) for x, y in pts_orig]
                 n = len(points)
                 A_i, cx_i, cy_i = 0.0, 0.0, 0.0
                 for i in range(n):
@@ -202,10 +203,11 @@ if modo_geometria == "Paramétrica (Viga Cajón estándar)":
 else:
     st.sidebar.subheader("📁 Cargar Archivo DXF")
     uploaded_dxf = st.sidebar.file_uploader("Seleccione el archivo .dxf dibujado en mm", type=["dxf"])
+    rotacion_deg = st.sidebar.selectbox("🔄 Rotar Sección Transversal", [0, 90, 180, 270], index=1)
     
     if uploaded_dxf is not None:
         try:
-            res_dxf = procesar_dxf(uploaded_dxf)
+            res_dxf = procesar_dxf(uploaded_dxf, angulo_deg=rotacion_deg)
             if res_dxf:
                 Jx = res_dxf['Jx']
                 Jy = res_dxf['Jy']
