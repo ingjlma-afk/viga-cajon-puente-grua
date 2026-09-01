@@ -401,6 +401,58 @@ c4.metric("Peso Est. Tambor", f"{res_tambor['peso_tambor_kg']} kgf")
 # =======================================================
 peso_mecanismos_estimado = res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + 250.0  # 250kg est. motor+reductor
 st.info(f"💡 **Peso total acumulado del conjunto de elevación (Carro + Tambor + Cable + Mecanismos):** ≈ {peso_mecanismos_estimado:.1f} kgf")
+from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
+
+# =======================================================
+# MÓDULO DE DIMENSIONAMIENTO DEL TAMBOR Y SUMATORIA DE PESOS
+# =======================================================
+st.markdown("---")
+st.header("🛞 Dimensionamiento del Tambor y Balance Acumulado de Cargas")
+
+col_t1, col_t2, col_t3 = st.columns(3)
+
+with col_t1:
+    tipo_polipasto = st.selectbox("Configuración de Polipasto", ["Gemelo (4/2 o 2/2)", "Simple (2/1 o 4/1)"])
+with col_t2:
+    H_elevacion = st.number_input("Altura de Elevación [m]", value=8.0, step=1.0)
+with col_t3:
+    # Toma el diámetro del cable seleccionado o uno por defecto
+    d_cable_sel = st.number_input("Diámetro de Cable Seleccionado [mm]", value=14.0, step=1.0)
+
+# Carga útil y ramales definidos
+carga_q_actual = float(q_ingresada) if 'q_ingresada' in locals() else 10000.0
+ramales_actual = int(ramales) if 'ramales' in locals() else 4
+
+# Estimación del peso de la pasteca/gancho
+peso_pasteca_calc = estimar_peso_pasteca(carga_q_actual, ramales_actual)
+
+# Cálculo del tambor y cable
+res_tambor = calcular_dimensiones_tambor(
+    d_cable_mm=d_cable_sel, 
+    H_elevacion_m=H_elevacion, 
+    num_ramales=ramales_actual, 
+    tipo_polipasto=tipo_polipasto
+)
+
+# Mapeo visual de los pesos componentes
+st.subheader("📊 Desglose de Pesos del Mecanismo de Elevación")
+
+m1, m2, m3, m4 = st.columns(4)
+m1.metric("Pasteca y Gancho", f"{peso_pasteca_calc:.1f} kgf")
+m2.metric("Cable de Acero Total", f"{res_tambor['peso_cable_kg']:.1f} kgf")
+m3.metric("Tambor Ranurado", f"{res_tambor['peso_tambor_kg']:.1f} kgf")
+m4.metric("Motor/Reductor/Freno (Est.)", "350.0 kgf")
+
+# Sumatoria total que actuará sobre el puente
+peso_carro_completo = peso_pasteca_calc + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + 350.0
+carga_total_actuante = carga_q_actual + peso_carro_completo
+
+st.success(f"""
+⚖️ **Carga Total Centralizada sobre la Viga Principal:**  
+* **Carga Útil ($Q$):** {carga_q_actual:.0f} kgf  
+* **Peso Propio del Carro y Mecanismos ($P_{{carro}}$):** {peso_carro_completo:.1f} kgf  
+* **Carga Solicitante Total ($P_{{total}}$):** **{carga_total_actuante:.1f} kgf**
+""")
 st.markdown("""
     <div class="footer-utn">
         <strong>Universidad Tecnológica Nacional — Facultad Regional Resistencia</strong><br>
