@@ -76,19 +76,28 @@ modo_geometria = st.sidebar.radio(
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
 fig = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF ---
+# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF (Soporta ASCII y Binario) ---
 def procesar_dxf(uploaded_file):
     raw_bytes = uploaded_file.getvalue()
+    
+    # 1. Intento de lectura directa en bytes (Soporta DXF Binario de SolidWorks/AutoCAD)
     try:
-        content_str = raw_bytes.decode('utf-8', errors='ignore')
+        stream_bytes = io.BytesIO(raw_bytes)
+        doc = ezdxf.read(stream_bytes)
     except Exception:
-        content_str = raw_bytes.decode('latin-1', errors='ignore')
+        # 2. Respaldo para DXF ASCII con codificación tolerante
+        try:
+            content_str = raw_bytes.decode('utf-8', errors='ignore')
+        except Exception:
+            content_str = raw_bytes.decode('latin-1', errors='ignore')
+            
+        stream_str = io.StringIO(content_str)
+        doc = ezdxf.read(stream_str)
         
-    stream = io.StringIO(content_str)
-    doc = ezdxf.read(stream)
     msp = doc.modelspace()
     poligonos = []
     
+    # Extraer polilíneas cerradas del DXF
     for entity in msp:
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             points = [(p[0], p[1]) for p in entity.get_points()]
