@@ -8,7 +8,7 @@ import ezdxf
 from ezdxf import recover
 
 # Importación de módulos propios
-from modulo_cables import obtener_tabla_cables_completa, seleccionar_cable_mecanismo
+from modulo_cables import verificar_tabla_cables, obtener_tabla_cables_completa
 from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
 
 # Configuración de página con título e icono
@@ -276,13 +276,10 @@ with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
 # CÁLCULOS MECÁNICOS Y CARGA FINAL
 # =======================================================
 peso_pasteca = estimar_peso_pasteca(Q, num_ramales)
-
 S_max, F_req, tabla_cables = verificar_tabla_cables(
-    Q_kg=Q, 
-    P_ap_kg=peso_pasteca, 
-    num_ramales=num_ramales, 
-    grupo_mecanismo=grupo_din,
-    filtro_estado='Solo Recomendados'
+    Q_kg=Q,
+    P_ap_kg=peso_pasteca,
+    num_ramales=num_ramales
 )
 
 d_cable_sel = tabla_cables[0]["Diámetro [mm]"] if len(tabla_cables) > 0 else 14.0
