@@ -402,10 +402,6 @@ st.success(f"""
 * ➔ **CARGA TOTAL SOLICITANTE DE VIGA ($P_{{total}}$): {CARGA_TOTAL_ACTUANTE:.1f} kgf**
 """)
 
-st.markdown("---")
-st.header("⚙️ Selección y Evaluación Técnica de Cables (DIN 4130)")
-st.subheader(f"Tracción Máxima por Ramal ($S_{{max}}$): {S_max:.2f} kgf | Cable Recomendado: {d_cable_sel} mm")
-st.dataframe(tabla_cables, use_container_width=True)
 
 from modulo_motor import calcular_motor_reductor
 
