@@ -8,6 +8,7 @@ import math
 def calcular_dimensiones_tambor(*args, **kwargs):
     """
     Calcula las dimensiones del tambor y sus pesos asociados para el carro del puente grúa.
+    Soporta múltiples claves de retorno para compatibilidad con app.py.
     """
     d_cable = kwargs.get('d_cable_mm', kwargs.get('diametro_cable_mm', args[0] if args else 12.0))
     H_elev = kwargs.get('H_elevacion_m', kwargs.get('altura_elevacion_m', args[1] if len(args) > 1 else 6.0))
@@ -22,13 +23,19 @@ def calcular_dimensiones_tambor(*args, **kwargs):
     vueltas_totales = vueltas_utiles + 2.0
     longitud_tambor_mm = vueltas_totales * paso_ranura_mm
     
-    # Estimación de pesos requeridos por app.py en la línea 295
+    # Estimación de pesos
     peso_cable_kg = round(longitud_cable_m * (d_cable ** 2) * 0.0038, 1)
     peso_tambor_kg = round(math.pi * (diametro_tambor_mm / 1000.0) * (longitud_tambor_mm / 1000.0) * 0.015 * 7850.0, 1)
     
+    d_tambor_redondeado = round(diametro_tambor_mm, 1)
+    L_tambor_redondeado = round(longitud_tambor_mm, 1)
+    
     return {
-        "diametro_tambor_mm": round(diametro_tambor_mm, 1),
-        "longitud_tambor_mm": round(longitud_tambor_mm, 1),
+        # Claves con distintas nomenclaturas para evitar KeyError
+        "D_tambor_mm": d_tambor_redondeado,
+        "diametro_tambor_mm": d_tambor_redondeado,
+        "L_tambor_mm": L_tambor_redondeado,
+        "longitud_tambor_mm": L_tambor_redondeado,
         "paso_ranura_mm": round(paso_ranura_mm, 2),
         "vueltas_totales": round(vueltas_totales, 1),
         "peso_cable_kg": peso_cable_kg,
