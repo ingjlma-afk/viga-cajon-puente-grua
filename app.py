@@ -284,25 +284,24 @@ S_max, F_req, tabla_cables = verificar_tabla_cables(
 )
 
 # ------------------------------------------------------------------------------
-# INTERFAZ VISUAL: SELECCIÓN Y FILTRADO DE CABLES
+# INTERFAZ VISUAL: SELECCIÓN INTERACTIVA Y GEOMETRÍA
 # ------------------------------------------------------------------------------
 st.markdown("---")
-st.subheader("🧵 Selección de Cable de Acero y Verificación de Coeficientes")
+st.subheader("🧵 Selección del Cable y Configuración del Polipasto")
 
-st.info(f"**Tiro máximo por ramal ($S_{{max}}$):** {S_max:.2f} kgf | **Fuerza de rotura mínima requerida ($F_{{req}}$):** {F_req:.2f} kN")
+col_p1, col_p2 = st.columns(2)
+with col_p1:
+    tipo_polipasto = st.radio("Tipo de Polipasto:", ["Gemelo (Doble arrollamiento)", "Simple (Un solo ramal al tambor)"], index=0)
+with col_p2:
+    vueltas_reserva = st.number_input("Vueltas de seguridad en tambor por lado:", min_value=2, max_value=5, value=3)
 
-# Opciones de filtrado para los alumnos
+# Filtro de catálogo
 opcion_filtro = st.radio(
-    "Filtrar lista de cables:",
-    [
-        "🟢 Ver solo Óptimos / Recomendados",
-        "🟡 Ver Óptimos y Sobredimensionados",
-        "📋 Ver Catálogo Completo (incluye No Aptos)"
-    ],
+    "Filtrar catálogo de cables:",
+    ["🟢 Ver solo Óptimos / Recomendados", "🟡 Ver Óptimos y Sobredimensionados", "📋 Ver Catálogo Completo"],
     horizontal=True
 )
 
-# Aplicar filtro a la tabla
 if "🟢 Ver solo Óptimos" in opcion_filtro:
     tabla_mostrar = tabla_cables[tabla_cables['Estado_Verificacion'] == "🟢 Óptimo / Recomendado"]
 elif "🟡 Ver Óptimos y Sobredimensionados" in opcion_filtro:
@@ -310,22 +309,40 @@ elif "🟡 Ver Óptimos y Sobredimensionados" in opcion_filtro:
 else:
     tabla_mostrar = tabla_cables
 
-# Despliegue de la tabla interactiva
 st.dataframe(
     tabla_mostrar[[
         "Estado_Verificacion", "Norma_Marca", "Composicion", 
-        "Diametro_mm", "CS_Real", "Rotura_kN_1960"
+        "Diametro_mm", "CS_Real", "Rotura_kN_1960", "Peso_kg_m"
     ]],
     use_container_width=True
 )
 
-# Selección del diámetro para el cálculo del tambor
-d_cable_sel = tabla_cables["Diametro_mm"].iloc[0] if len(tabla_cables) > 0 else 14.0
+# EL ALUMNO SELECCIONA EL CABLE DEFINITIVO DE LA LISTA
+opc_cables = [
+    f"{row['Norma_Marca']} - {row['Composicion']} | Ø{row['Diametro_mm']} mm ({row['Peso_kg_m']} kg/m)" 
+    for _, row in tabla_mostrar.iterrows()
+]
+
+if len(opc_cables) > 0:
+    cable_elegido_str = st.selectbox("👉 Seleccione el Cable a instalar en la grúa:", opc_cables)
+    idx_sel = opc_cables.index(cable_elegido_str)
+    cable_sel = tabla_mostrar.iloc[idx_sel]
+    d_cable_sel = float(cable_sel["Diametro_mm"])
+    peso_unitario_sel = float(cable_sel["Peso_kg_m"])
+else:
+    d_cable_sel = 14.0
+    peso_unitario_sel = 0.88
+
+# ------------------------------------------------------------------------------
+# CÁLCULO DE TAMBOR CON PESO REAL DEL CABLE ELEGIDO
+# ------------------------------------------------------------------------------
 res_tambor = calcular_dimensiones_tambor(
-    d_cable_mm=d_cable_sel, 
-    H_elevacion_m=he, 
-    num_ramales=num_ramales, 
-    tipo_polipasto='Gemelo'
+    d_cable_mm=d_cable_sel,
+    H_elevacion_m=he,
+    num_ramales=num_ramales,
+    peso_kg_m=peso_unitario_sel,
+    tipo_polipasto=tipo_polipasto,
+    vueltas_reserva=vueltas_reserva
 )
 
 peso_mecanismos_est = 350.0
