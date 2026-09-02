@@ -339,7 +339,28 @@ else:
 st.markdown("---")
 st.subheader("📐 Adopción de Coeficientes para Tambor y Poleas (DIN 15020)")
 
-# Traemos la tabla de mínimos para alertar al alumno
+# Detectar el grupo desde la barra lateral (soporta grupo_din o grupo_fem)
+if 'grupo_din' in locals() or 'grupo_din' in globals():
+    grupo_sel = grupo_din
+elif 'grupo_fem' in locals() or 'grupo_fem' in globals():
+    grupo_sel = grupo_fem
+else:
+    grupo_sel = "2m (M5)"
+
+# Mapeo de equivalencias DIN 4130 / FEM 9.511
+MAPA_GRUPOS = {
+    "I": "1Am (M4)",
+    "II": "2m (M5)",
+    "III": "3m (M6)",
+    "IV": "4m (M7)",
+    "V": "5m (M8)",
+    "1Bm (M3)": "1Bm (M3)", "1Am (M4)": "1Am (M4)", 
+    "2m (M5)": "2m (M5)", "3m (M6)": "3m (M6)", 
+    "4m (M7)": "4m (M7)", "5m (M8)": "5m (M8)"
+}
+
+grupo_fem = MAPA_GRUPOS.get(str(grupo_sel), "2m (M5)")
+
 h_min_dict = {
     "1Bm (M3)": {"h1": 14.0, "h2": 16.0, "h3": 11.2},
     "1Am (M4)": {"h1": 16.0, "h2": 18.0, "h3": 12.5},
@@ -348,6 +369,7 @@ h_min_dict = {
     "4m (M7)":  {"h1": 22.4, "h2": 25.0, "h3": 18.0},
     "5m (M8)":  {"h1": 25.0, "h2": 28.0, "h3": 20.0}
 }
+
 h_actual = h_min_dict.get(grupo_fem, {"h1": 18.0, "h2": 20.0, "h3": 14.0})
 
 st.warning(f"**Mínimos normativos FEM ({grupo_fem}):** "
@@ -398,7 +420,6 @@ if "Gemelo" in str(tipo_polipasto):
 peso_mecanismos_est = 350.0
 P_carro_real = peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + peso_mecanismos_est
 CARGA_TOTAL_ACTUANTE = Q + P_carro_real
-
 # =======================================================
 # CÁLCULO ESTRUCTURAL DE LA VIGA
 # =======================================================
