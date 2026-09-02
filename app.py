@@ -272,18 +272,55 @@ with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
     sigma_adm_hv = st.number_input("σ admisible combinada [kgf/cm²]", value=1600.0)
     E = st.number_input("Módulo elástico E [kgf/cm²]", value=2100000.0)
 
-# =======================================================
+# ==============================================================================
 # CÁLCULOS MECÁNICOS Y CARGA FINAL
-# =======================================================
+# ==============================================================================
 peso_pasteca = estimar_peso_pasteca(Q, num_ramales)
+
 S_max, F_req, tabla_cables = verificar_tabla_cables(
     Q_kg=Q,
     P_ap_kg=peso_pasteca,
     num_ramales=num_ramales
 )
 
-d_cable_sel = tabla_cables["Diametro_mm"].iloc[0] if len(tabla_cables) > 0 else 14.0
+# ------------------------------------------------------------------------------
+# INTERFAZ VISUAL: SELECCIÓN Y FILTRADO DE CABLES
+# ------------------------------------------------------------------------------
+st.markdown("---")
+st.subheader("🧵 Selección de Cable de Acero y Verificación de Coeficientes")
 
+st.info(f"**Tiro máximo por ramal ($S_{{max}}$):** {S_max:.2f} kgf | **Fuerza de rotura mínima requerida ($F_{{req}}$):** {F_req:.2f} kN")
+
+# Opciones de filtrado para los alumnos
+opcion_filtro = st.radio(
+    "Filtrar lista de cables:",
+    [
+        "🟢 Ver solo Óptimos / Recomendados",
+        "🟡 Ver Óptimos y Sobredimensionados",
+        "📋 Ver Catálogo Completo (incluye No Aptos)"
+    ],
+    horizontal=True
+)
+
+# Aplicar filtro a la tabla
+if "🟢 Ver solo Óptimos" in opcion_filtro:
+    tabla_mostrar = tabla_cables[tabla_cables['Estado_Verificacion'] == "🟢 Óptimo / Recomendado"]
+elif "🟡 Ver Óptimos y Sobredimensionados" in opcion_filtro:
+    tabla_mostrar = tabla_cables[tabla_cables['Estado_Verificacion'].isin(["🟢 Óptimo / Recomendado", "🟡 Sobredimensionado"])]
+else:
+    tabla_mostrar = tabla_cables
+
+# Despliegue de la tabla interactiva
+st.dataframe(
+    tabla_mostrar[[
+        "Estado_Verificacion", "Norma_Marca", "Composicion", 
+        "Diametro_mm", "CS_Real", "Rotura_kN_1960", "Uso_Principal"
+    ]],
+    use_container_width=True
+)
+
+# Selección del diámetro para el cálculo del tambor
+d_cable_sel = tabla_cables["Diametro_mm"].iloc[0] if len(tabla_cables) > 0 else 14.0
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel, 
     H_elevacion_m=he, 
