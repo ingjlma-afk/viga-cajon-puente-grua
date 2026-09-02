@@ -22,23 +22,17 @@ def calcular_dimensiones_tambor(diametro_cable_mm: float, altura_elevacion_m: fl
         "vueltas_totales": round(vueltas_totales, 1)
     }
 
-def estimar_peso_pasteca(*args, **kwargs):
+def estimar_peso_pasteca(Q: float = 5000.0, num_ramales: int = 4, *args, **kwargs):
     """
     Estima el peso propio de la pasteca/aparejo de gancho.
-    Acepta cualquier cantidad de parámetros enviados por app.py para evitar TypeError.
+    Recibe Q (carga en kg o Tn) y num_ramales desde app.py.
     """
-    # Si app.py pasa la carga como primer argumento posicional
-    carga = args[0] if args else kwargs.get('carga_nominal_tn', kwargs.get('Q', 5.0))
-    
     # Si la carga viene en kg (mayor a 100), la convertimos a toneladas
-    if carga > 100:
-        carga_tn = carga / 1000.0
+    if Q > 100:
+        carga_tn = Q / 1000.0
     else:
-        carga_tn = carga
+        carga_tn = Q
         
     # Estimación estándar: ~3% de la carga nominal
     peso_estimado_kg = carga_tn * 1000.0 * 0.03
     return round(peso_estimado_kg, 1)
-
-# Alias de compatibilidad
-calcular_peso_pasteca = estimar_peso_pasteca
