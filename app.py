@@ -334,17 +334,67 @@ else:
     peso_unitario_sel = 0.88
 
 # ------------------------------------------------------------------------------
-# CÁLCULO DE TAMBOR CON PESO REAL DEL CABLE ELEGIDO
+# ADOPCIÓN DE COEFICIENTES h1, h2, h3 (DECISIÓN DEL ALUMNO)
 # ------------------------------------------------------------------------------
+st.markdown("---")
+st.subheader("📐 Adopción de Coeficientes para Tambor y Poleas (DIN 15020)")
+
+# Traemos la tabla de mínimos para alertar al alumno
+h_min_dict = {
+    "1Bm (M3)": {"h1": 14.0, "h2": 16.0, "h3": 11.2},
+    "1Am (M4)": {"h1": 16.0, "h2": 18.0, "h3": 12.5},
+    "2m (M5)":  {"h1": 18.0, "h2": 20.0, "h3": 14.0},
+    "3m (M6)":  {"h1": 20.0, "h2": 22.4, "h3": 16.0},
+    "4m (M7)":  {"h1": 22.4, "h2": 25.0, "h3": 18.0},
+    "5m (M8)":  {"h1": 25.0, "h2": 28.0, "h3": 20.0}
+}
+h_actual = h_min_dict.get(grupo_fem, {"h1": 18.0, "h2": 20.0, "h3": 14.0})
+
+st.warning(f"**Mínimos normativos FEM ({grupo_fem}):** "
+           f"**$h_{{1,min}} = {h_actual['h1']}$** (Tambor) | "
+           f"**$h_{{2,min}} = {h_actual['h2']}$** (Pasteca) | "
+           f"**$h_{{3,min}} = {h_actual['h3']}$** (Reenvío).")
+
+col_h1, col_h2, col_h3 = st.columns(3)
+with col_h1:
+    h1_user = st.number_input("Adoptar $h_1$ (Tambor):", value=float(h_actual['h1']), step=0.5)
+with col_h2:
+    h2_user = st.number_input("Adoptar $h_2$ (Poleas Pasteca):", value=float(h_actual['h2']), step=0.5)
+with col_h3:
+    h3_user = st.number_input("Adoptar $h_3$ (Polea Reenvío):", value=float(h_actual['h3']), step=0.5)
+
+# CÁLCULO DE GEOMETRÍA CON LOS VALORES ADOPTADOS
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel,
     H_elevacion_m=he,
     num_ramales=num_ramales,
     peso_kg_m=peso_unitario_sel,
     tipo_polipasto=tipo_polipasto,
-    vueltas_reserva=vueltas_reserva
+    vueltas_reserva=vueltas_reserva,
+    grupo_fem=grupo_fem,
+    h1_adoptado=h1_user,
+    h2_adoptado=h2_user,
+    h3_adoptado=h3_user
 )
 
+# VERIFICACIÓN TÉCNICA
+if not (res_tambor['h1_valido'] and res_tambor['h2_valido'] and res_tambor['h3_valido']):
+    st.error("❌ **ERROR NORMATIVO:** Uno o más coeficientes adoptados están por debajo del mínimo exigido por DIN 15020 / FEM.")
+else:
+    st.success("✅ **DISEÑO VERIFICADO:** Los coeficientes adoptados cumplen con las exigencias normativas.")
+
+# MOSTRAR RESULTADOS EN PANTALLA
+st.subheader("⚙️ Dimensiones Calculadas de Componentes")
+col_t1, col_t2, col_t3, col_t4 = st.columns(4)
+col_t1.metric("Ø Tambor ($D_t$)", f"{res_tambor['D_tambor_mm']} mm")
+col_t2.metric("Ancho Tambor ($L_t$)", f"{res_tambor['L_tambor_mm']} mm")
+col_t3.metric("Ø Poleas Pasteca ($D_p$)", f"{res_tambor['D_polea_mm']} mm")
+col_t4.metric("Ø Polea Reenvío ($D_r$)", f"{res_tambor['D_reenvio_mm']} mm")
+
+if "Gemelo" in str(tipo_polipasto):
+    st.info(f"📏 **Separación central libre en tambor ($L_{{centro}}$):** {res_tambor['L_centro_mm']} mm (Igual al Ø de polea de pasteca para evitar desvío de cable).")
+
+# BALANCE FINAL DE CARGAS CARRO
 peso_mecanismos_est = 350.0
 P_carro_real = peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + peso_mecanismos_est
 CARGA_TOTAL_ACTUANTE = Q + P_carro_real

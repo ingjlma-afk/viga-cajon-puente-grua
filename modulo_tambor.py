@@ -1,49 +1,89 @@
 # modulo_tambor.py
 """
-Módulo de cálculo para el tambor de arrollamiento y estimación de pesos reales.
+Módulo de dimensionamiento de tambor y poleas para puentes grúa.
+Normativa DIN 15020 / FEM 9.511 con verificación de coeficientes h1, h2, h3.
 """
 
 import math
 
-def calcular_dimensiones_tambor(d_cable_mm: float, H_elevacion_m: float, num_ramales: int, peso_kg_m: float = 0.88, tipo_polipasto: str = 'Gemelo', vueltas_reserva: int = 3, *args, **kwargs):
+# Coeficientes MÍNIMOS normativos h1 (tambor), h2 (polea principal), h3 (polea reenvío)
+COEFICIENTES_H_MIN_FEM = {
+    "1Bm (M3)": {"h1": 14.0, "h2": 16.0, "h3": 11.2},
+    "1Am (M4)": {"h1": 16.0, "h2": 18.0, "h3": 12.5},
+    "2m (M5)":  {"h1": 18.0, "h2": 20.0, "h3": 14.0},
+    "3m (M6)":  {"h1": 20.0, "h2": 22.4, "h3": 16.0},
+    "4m (M7)":  {"h1": 22.4, "h2": 25.0, "h3": 18.0},
+    "5m (M8)":  {"h1": 25.0, "h2": 28.0, "h3": 20.0}
+}
+
+def calcular_dimensiones_tambor(
+    d_cable_mm: float, 
+    H_elevacion_m: float, 
+    num_ramales: int, 
+    peso_kg_m: float = 0.88, 
+    tipo_polipasto: str = 'Gemelo', 
+    vueltas_reserva: int = 3, 
+    grupo_fem: str = "2m (M5)",
+    h1_adoptado: float = 18.0,
+    h2_adoptado: float = 20.0,
+    h3_adoptado: float = 14.0,
+    *args, **kwargs
+):
     """
-    Calcula la geometría real del tambor y el peso total exacto del cable instalado.
+    Calcula la geometría evaluando los coeficientes h adoptados por el alumno contra los mínimos de la norma.
     """
-    # Compatibilidad con llamadas sin peso explícito
-    if 'd_cable_mm' in kwargs: d_cable_mm = kwargs['d_cable_mm']
-    if 'H_elevacion_m' in kwargs: H_elevacion_m = kwargs['H_elevacion_m']
-    if 'num_ramales' in kwargs: num_ramales = kwargs['num_ramales']
-    
-    diametro_tambor_mm = d_cable_mm * 20.0
+    h_min = COEFICIENTES_H_MIN_FEM.get(grupo_fem, {"h1": 18.0, "h2": 20.0, "h3": 14.0})
+
+    # Verificación de cumplimiento
+    h1_valido = h1_adoptado >= h_min["h1"]
+    h2_valido = h2_adoptado >= h_min["h2"]
+    h3_valido = h3_adoptado >= h_min["h3"]
+
+    # Diámetros reales calculados con los coeficientes que decidió usar el alumno
+    D_tambor_mm = d_cable_mm * h1_adoptado
+    D_polea_mm = d_cable_mm * h2_adoptado
+    D_reenvio_mm = d_cable_mm * h3_adoptado
+
     paso_ranura_mm = d_cable_mm * 1.15
-    perimetro_tambor_m = (math.pi * diametro_tambor_mm) / 1000.0
+    perimetro_tambor_m = (math.pi * D_tambor_mm) / 1000.0
 
     if "Gemelo" in str(tipo_polipasto):
         longitud_util_m = H_elevacion_m * (num_ramales / 2.0)
         vueltas_reserva_totales = vueltas_reserva * 2
+        L_centro_mm = D_polea_mm  # Separación central igual al diámetro de poleas de pasteca
     else:
         longitud_util_m = H_elevacion_m * num_ramales
         vueltas_reserva_totales = vueltas_reserva
+        L_centro_mm = 0.0
 
     vueltas_utiles = longitud_util_m / perimetro_tambor_m if perimetro_tambor_m > 0 else 0
     vueltas_totales = vueltas_utiles + vueltas_reserva_totales
+
+    L_ranurada_lado_mm = (vueltas_totales / (2.0 if "Gemelo" in str(tipo_polipasto) else 1.0)) * paso_ranura_mm
+    L_mangas_pestaña_mm = d_cable_mm * 4.0
     
+    if "Gemelo" in str(tipo_polipasto):
+        L_tambor_total_mm = (2.0 * L_ranurada_lado_mm) + L_centro_mm + L_mangas_pestaña_mm
+    else:
+        L_tambor_total_mm = L_ranurada_lado_mm + L_mangas_pestaña_mm
+
     longitud_total_cable_m = vueltas_totales * perimetro_tambor_m
     peso_cable_total_kg = round(longitud_total_cable_m * peso_kg_m, 1)
-    
-    longitud_tambor_mm = vueltas_totales * paso_ranura_mm * (2.0 if "Gemelo" in str(tipo_polipasto) else 1.0)
-    peso_tambor_kg = round(math.pi * (diametro_tambor_mm / 1000.0) * (longitud_tambor_mm / 1000.0) * 0.012 * 7850.0, 1)
+    peso_tambor_kg = round(math.pi * (D_tambor_mm / 1000.0) * (L_tambor_total_mm / 1000.0) * 0.012 * 7850.0, 1)
 
     return {
-        "D_tambor_mm": round(diametro_tambor_mm, 1),
-        "diametro_tambor_mm": round(diametro_tambor_mm, 1),
-        "L_tambor_mm": round(longitud_tambor_mm, 1),
-        "longitud_tambor_mm": round(longitud_tambor_mm, 1),
+        "D_tambor_mm": round(D_tambor_mm, 1),
+        "D_polea_mm": round(D_polea_mm, 1),
+        "D_reenvio_mm": round(D_reenvio_mm, 1),
+        "L_tambor_mm": round(L_tambor_total_mm, 1),
+        "L_centro_mm": round(L_centro_mm, 1),
         "paso_ranura_mm": round(paso_ranura_mm, 2),
         "vueltas_totales": round(vueltas_totales, 1),
         "longitud_cable_m": round(longitud_total_cable_m, 2),
         "peso_cable_kg": peso_cable_total_kg,
-        "peso_tambor_kg": peso_tambor_kg
+        "peso_tambor_kg": peso_tambor_kg,
+        "h1_min": h_min["h1"], "h2_min": h_min["h2"], "h3_min": h_min["h3"],
+        "h1_valido": h1_valido, "h2_valido": h2_valido, "h3_valido": h3_valido
     }
 
 def estimar_peso_pasteca(Q: float = 5000.0, num_ramales: int = 4, *args, **kwargs):
