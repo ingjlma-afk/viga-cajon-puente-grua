@@ -1,104 +1,193 @@
-# modulo_cable.py
+# modulo_cables.py
 """
-Módulo de base de datos y selección de cables de acero para puentes grúa.
-Incluye tecnología de alto rendimiento (Verope) y normas tradicionales (DIN 655 / DIN 656).
+Módulo completo de base de datos y selección de cables de acero para puentes grúa.
+Incluye catálogo exhaustivo de Verope (Alto Rendimiento) y normas DIN 655 / DIN 656.
 """
 
 import pandas as pd
 
 def obtener_tabla_cables_completa():
     """
-    Retorna la base de datos exhaustiva de cables en un DataFrame de Pandas.
+    Retorna la base de datos exhaustiva con todos los modelos Verope y tablas DIN.
     """
     registros = []
 
+    # ==========================================================================
     # 1. CABLES DE ALTO RENDIMIENTO (VEROPE)
-    # --------------------------------------------------------------------------
-    verope_modelos = {
-        "Verotop": {"tipo": "Antigiratorio", "constr": "35x7 Compactado", "uso": "Grúas torre, móviles, elevación principal", "datos": [(8, 56.2, 61.5), (50, 2180.0, 2380.0)]},
-        "Verotop E": {"tipo": "Antigiratorio", "constr": "35x7 No compactado", "uso": "Grúas torre y auxiliares", "datos": [(10, 82.1, 89.8), (40, 1300.0, 1420.0)]},
-        "Verotop S": {"tipo": "Antigiratorio", "constr": "35x7 Swaged", "uso": "Trabajo pesado, perforadoras", "datos": [(10, 98.5, 108.0), (32, 995.0, 1090.0)]},
-        "Verotop P": {"tipo": "Antigiratorio", "constr": "35x7 Plástico/Compactado", "uso": "Grúas offshore, orugas", "datos": [(12, 128.0, 140.0), (46, 1890.0, 2070.0)]},
-        "Veropro 8": {"tipo": "No Antigiratorio 8C", "constr": "8x36 Alma Plastificada", "uso": "Grúas puente, portuarias", "datos": [(10, 88.4, 96.8), (50, 2190.0, 2390.0)]},
-        "Veropower 8": {"tipo": "No Antigiratorio 8C", "constr": "8x36 Totalmente Compactado", "uso": "Siderurgia, elevación pesada", "datos": [(14, 182.0, 199.0), (60, 3350.0, 3660.0)]},
-        "Veropro 6": {"tipo": "No Antigiratorio 6C", "constr": "6x36 Alma Plastificada", "uso": "Excavadoras, tracción", "datos": [(10, 81.2, 88.9), (46, 1710.0, 1870.0)]},
-    }
+    # ==========================================================================
+    verope_catalog = [
+        # ("Modelo", "Tipo", "Construcción", "Uso", [(Ø_mm, Rotura_1960_kN, Rotura_2160_kN), ...])
+        ("Verotop", "Antigiratorio", "35x7 Compactado", "Grúas torre, móviles, elevación principal", [
+            (8.0, 56.2, 61.5), (10.0, 88.0, 96.5), (12.0, 128.0, 140.0), (14.0, 175.0, 192.0),
+            (16.0, 228.0, 250.0), (18.0, 289.0, 317.0), (20.0, 357.0, 391.0), (22.0, 432.0, 473.0),
+            (24.0, 514.0, 563.0), (26.0, 603.0, 661.0), (28.0, 700.0, 767.0), (32.0, 914.0, 1002.0),
+            (36.0, 1157.0, 1268.0), (40.0, 1428.0, 1565.0), (50.0, 2180.0, 2380.0)
+        ]),
+        ("Verotop E", "Antigiratorio", "35x7 No compactado", "Grúas torre y auxiliares", [
+            (10.0, 82.1, 89.8), (12.0, 118.0, 129.0), (14.0, 161.0, 176.0), (16.0, 210.0, 230.0),
+            (18.0, 266.0, 291.0), (20.0, 328.0, 359.0), (24.0, 473.0, 518.0), (28.0, 643.0, 704.0),
+            (32.0, 840.0, 920.0), (40.0, 1300.0, 1420.0)
+        ]),
+        ("Verotop S", "Antigiratorio", "35x7 Swaged / Totalmente Compactado", "Trabajo pesado, perforadoras", [
+            (10.0, 98.5, 108.0), (12.0, 142.0, 155.0), (14.0, 193.0, 211.0), (16.0, 252.0, 276.0),
+            (18.0, 319.0, 349.0), (20.0, 394.0, 431.0), (24.0, 567.0, 621.0), (28.0, 772.0, 846.0),
+            (32.0, 995.0, 1090.0)
+        ]),
+        ("Verotop P", "Antigiratorio", "35x7 Inserto Plástico / Compactado", "Grúas offshore y sobre orugas", [
+            (12.0, 128.0, 140.0), (14.0, 175.0, 192.0), (16.0, 228.0, 250.0), (18.0, 289.0, 317.0),
+            (20.0, 357.0, 391.0), (24.0, 514.0, 563.0), (28.0, 700.0, 767.0), (32.0, 914.0, 1002.0),
+            (36.0, 1157.0, 1268.0), (40.0, 1428.0, 1565.0), (46.0, 1890.0, 2070.0)
+        ]),
+        ("Veropro 8", "No Antigiratorio 8C", "8x36 Alma Plastificada (EPIW)", "Grúas puente, portuarias (Container Cranes)", [
+            (10.0, 88.4, 96.8), (12.0, 127.0, 139.0), (14.0, 173.0, 190.0), (16.0, 225.0, 247.0),
+            (18.0, 286.0, 313.0), (20.0, 353.0, 387.0), (22.0, 427.0, 468.0), (24.0, 508.0, 557.0),
+            (26.0, 597.0, 654.0), (28.0, 692.0, 759.0), (32.0, 904.0, 991.0), (36.0, 1144.0, 1254.0),
+            (40.0, 1412.0, 1548.0), (46.0, 1868.0, 2047.0), (50.0, 2190.0, 2390.0)
+        ]),
+        ("Veropower 8", "No Antigiratorio 8C", "8x36 Totalmente Compactado", "Siderurgia, elevación pesada industrial", [
+            (14.0, 182.0, 199.0), (16.0, 238.0, 261.0), (18.0, 301.0, 330.0), (20.0, 372.0, 407.0),
+            (22.0, 450.0, 493.0), (24.0, 535.0, 586.0), (26.0, 628.0, 688.0), (28.0, 729.0, 798.0),
+            (32.0, 952.0, 1043.0), (36.0, 1205.0, 1320.0), (40.0, 1488.0, 1630.0), (50.0, 2325.0, 2548.0),
+            (60.0, 3350.0, 3660.0)
+        ]),
+        ("Veropro 6", "No Antigiratorio 6C", "6x36 Alma Plastificada", "Excavadoras, tracción pesada, plumas", [
+            (10.0, 81.2, 88.9), (12.0, 117.0, 128.0), (14.0, 159.0, 174.0), (16.0, 208.0, 228.0),
+            (18.0, 263.0, 288.0), (20.0, 325.0, 356.0), (24.0, 468.0, 513.0), (28.0, 637.0, 698.0),
+            (32.0, 832.0, 911.0), (36.0, 1053.0, 1153.0), (40.0, 1300.0, 1424.0), (46.0, 1710.0, 1870.0)
+        ]),
+        ("Verocoat 6", "No Antigiratorio 6C", "6x36 Recubrimiento Plástico Exterior", "Entornos abrasivos o corrosivos", [
+            (8.0, 45.6, 50.0), (10.0, 71.2, 78.0), (12.0, 102.0, 112.0), (14.0, 139.0, 152.0),
+            (16.0, 182.0, 199.0), (18.0, 230.0, 252.0), (20.0, 284.0, 311.0), (24.0, 409.0, 448.0),
+            (28.0, 557.0, 610.0), (32.0, 725.0, 794.0)
+        ]),
+    ]
 
-    for modelo, info in verope_modelos.items():
-        for d, r1960, r2160 in info["datos"]:
+    for modelo, tipo, constr, uso, diametros in verope_catalog:
+        for d, r1960, r2160 in diametros:
             registros.append({
                 "Norma_Marca": "Verope",
-                "Tipo": info["tipo"],
+                "Tipo": tipo,
                 "Composicion": modelo,
-                "Construccion": info["constr"],
+                "Construccion": constr,
                 "Diametro_mm": d,
                 "Peso_kg_m": None,
                 "Rotura_kN_1960": r1960,
                 "Rotura_kN_2160": r2160,
-                "Uso_Principal": info["uso"]
+                "Uso_Principal": uso
             })
 
+    # ==========================================================================
     # 2. CABLES TRADICIONALES DIN 655 (Alma Textil)
-    # --------------------------------------------------------------------------
+    # ==========================================================================
+    # [diametro_mm, diam_hilo_mm, seccion_mm2, peso_kg_m, rotura_130, rotura_160, rotura_180]
     din_655_A = [
-        (6.5, 0.135, 1860, 2300, 2550), (8.0, 0.210, 2900, 3600, 4050),
-        (9.5, 0.300, 4200, 5150, 5800), (11.0, 0.410, 5700, 7000, 7900),
-        (12.5, 0.540, 7450, 9150, 10300), (14.0, 0.680, 9450, 11600, 13050),
-        (16.0, 0.850, 11650, 14300, 16100), (19.0, 1.220, 16750, 20600, 23200),
-        (22.0, 1.660, 22800, 28050, 31600)
+        (6.5, 0.4, 14.3, 0.135, 1860, 2300, 2550), (8.0, 0.5, 22.4, 0.21, 2900, 3600, 4050),
+        (9.5, 0.6, 32.2, 0.30, 4200, 5150, 5800), (11.0, 0.7, 43.9, 0.41, 5700, 7000, 7900),
+        (12.5, 0.8, 57.3, 0.54, 7450, 9150, 10300), (14.0, 0.9, 72.5, 0.68, 9450, 11600, 13050),
+        (16.0, 1.0, 89.5, 0.85, 11650, 14300, 16100), (17.0, 1.1, 108.3, 1.02, 14100, 17350, 19500),
+        (19.0, 1.2, 128.9, 1.22, 16750, 20600, 23200), (20.0, 1.3, 151.3, 1.43, 19650, 24200, 27250),
+        (22.0, 1.4, 175.5, 1.66, 22800, 28050, 31600)
     ]
-    for d, peso, r130, r160, r180 in din_655_A:
+    for d, d_h, sec, peso, r130, r160, r180 in din_655_A:
         registros.append({
-            "Norma_Marca": "DIN 655",
-            "Tipo": "Convencional",
-            "Composicion": "6x19 (114 hilos)",
-            "Construccion": "Composición A",
-            "Diametro_mm": d,
-            "Peso_kg_m": peso,
-            "Rotura_kN_1960": (r160 * 9.81) / 1000,  # Conversión kg a kN aproximada
-            "Rotura_kN_2160": (r180 * 9.81) / 1000,
+            "Norma_Marca": "DIN 655", "Tipo": "Convencional (Alma Textil)", "Composicion": "6x19 (114 hilos)",
+            "Construccion": "Composición A", "Diametro_mm": d, "Peso_kg_m": peso,
+            "Rotura_kN_1960": (r160 * 9.81) / 1000.0, "Rotura_kN_2160": (r180 * 9.81) / 1000.0,
             "Uso_Principal": "Uso general / Puentes grúa pequeños"
         })
 
-    # 3. CABLES TRADICIONALES DIN 656 (Seal-Lay / Warrington)
-    # --------------------------------------------------------------------------
-    din_656_A = [
-        (8.0, 0.26, 3450, 4250, 4800), (10.0, 0.38, 5150, 6350, 7150),
-        (12.0, 0.55, 7500, 9250, 10400), (14.0, 0.75, 10150, 12550, 14100),
-        (16.0, 1.00, 13550, 16700, 18800), (20.0, 1.53, 20750, 25550, 28750)
+    din_655_B = [
+        (9.0, 0.40, 27.9, 0.26, 3650, 4450, 5000), (10.0, 0.45, 35.3, 0.34, 4600, 5650, 6350),
+        (11.0, 0.50, 43.6, 0.41, 5650, 7000, 7850), (12.0, 0.55, 52.7, 0.50, 6850, 8450, 9500),
+        (13.0, 0.60, 62.8, 0.59, 8150, 10050, 11300), (14.0, 0.65, 73.7, 0.70, 9600, 11800, 13250),
+        (15.0, 0.70, 85.4, 0.81, 11100, 13650, 15350), (16.0, 0.75, 98.1, 0.93, 12750, 15700, 17650),
+        (18.0, 0.80, 111.6, 1.06, 14500, 17850, 20100), (20.0, 0.90, 141.2, 1.34, 18350, 22600, 25400),
+        (22.0, 1.00, 174.4, 1.65, 22650, 27900, 31400), (24.0, 1.10, 211.0, 2.00, 27450, 33750, 38000),
+        (27.0, 1.20, 251.1, 2.38, 32650, 40200, 45200), (29.0, 1.30, 294.7, 2.80, 38300, 47150, 53050),
+        (31.0, 1.40, 341.7, 3.24, 44400, 54650, 61500), (33.0, 1.50, 392.3, 3.72, 51000, 62750, 70600),
+        (35.0, 1.60, 446.4, 4.24, 58050, 71400, 80350), (37.0, 1.70, 503.9, 4.78, 65500, 80600, 90700),
+        (40.0, 1.80, 564.9, 5.36, 73450, 90400, 101700), (42.0, 1.90, 629.4, 5.97, 81800, 100700, 113300),
+        (44.0, 2.00, 697.4, 6.62, 90650, 111600, 125550)
     ]
-    for d, peso, r130, r160, r180 in din_656_A:
+    for d, d_h, sec, peso, r130, r160, r180 in din_655_B:
         registros.append({
-            "Norma_Marca": "DIN 656",
-            "Tipo": "Seal-Lay",
-            "Composicion": "6x19 (114 hilos)",
-            "Construccion": "Composición A",
-            "Diametro_mm": d,
-            "Peso_kg_m": peso,
-            "Rotura_kN_1960": (r160 * 9.81) / 1000,
-            "Rotura_kN_2160": (r180 * 9.81) / 1000,
-            "Uso_Principal": "Resistencia al desgaste / Tambores"
+            "Norma_Marca": "DIN 655", "Tipo": "Convencional (Alma Textil)", "Composicion": "6x37 (222 hilos)",
+            "Construccion": "Composición B", "Diametro_mm": d, "Peso_kg_m": peso,
+            "Rotura_kN_1960": (r160 * 9.81) / 1000.0, "Rotura_kN_2160": (r180 * 9.81) / 1000.0,
+            "Uso_Principal": "Puentes grúa / Siderurgia estándar"
+        })
+
+    din_655_C = [
+        (16.0, 0.6, 83.7, 0.84, 10900, 13400, 15050), (19.0, 0.7, 113.9, 1.14, 14800, 18200, 20500),
+        (20.0, 0.75, 130.8, 1.31, 17000, 20950, 23550), (21.0, 0.8, 148.8, 1.49, 19350, 23800, 26800),
+        (23.0, 0.85, 168.0, 1.68, 21850, 26900, 30250), (25.0, 0.95, 209.8, 2.10, 27250, 33550, 37750),
+        (27.0, 1.0, 232.6, 2.32, 30250, 37200, 41850), (30.0, 1.1, 281.3, 2.81, 36550, 45000, 50650),
+        (32.0, 1.2, 334.8, 3.35, 43500, 53550, 60250), (35.0, 1.3, 392.9, 3.93, 51050, 62850, 70700),
+        (37.0, 1.4, 455.7, 4.56, 59200, 72900, 82000), (40.0, 1.5, 523.1, 5.24, 68000, 83700, 94150),
+        (43.0, 1.6, 595.1, 5.95, 77350, 95200, 107100), (45.0, 1.7, 671.9, 6.72, 87350, 107500, 120950),
+        (48.0, 1.8, 752.2, 7.52, 97800, 120400, 135350), (51.0, 1.9, 839.2, 8.39, 109100, 134300, 151050),
+        (54.0, 2.0, 929.9, 9.30, 120800, 148900, 167400), (58.0, 2.2, 1125.1, 11.25, 146250, 180000, 202500)
+    ]
+    for d, d_h, sec, peso, r130, r160, r180 in din_655_C:
+        registros.append({
+            "Norma_Marca": "DIN 655", "Tipo": "Convencional (Alma Textil)", "Composicion": "8x37 (296 hilos)",
+            "Construccion": "Composición C", "Diametro_mm": d, "Peso_kg_m": peso,
+            "Rotura_kN_1960": (r160 * 9.81) / 1000.0, "Rotura_kN_2160": (r180 * 9.81) / 1000.0,
+            "Uso_Principal": "Grandes polipastos / Cargas pesadas"
+        })
+
+    # ==========================================================================
+    # 3. CABLES TRADICIONALES DIN 656 (Seal-Lay / Warrington)
+    # ==========================================================================
+    din_656_A = [
+        (8.0, 26.7, 0.26, 3450, 4250, 4800), (10.0, 39.9, 0.38, 5150, 6350, 7150),
+        (12.0, 57.8, 0.55, 7500, 9250, 10400), (14.0, 78.4, 0.75, 10150, 12550, 14100),
+        (16.0, 104.5, 1.00, 13550, 16700, 18800), (18.0, 123.8, 1.18, 16050, 19800, 22250),
+        (20.0, 159.9, 1.53, 20750, 25550, 28750), (22.0, 187.7, 1.79, 24400, 30000, 33800),
+        (24.0, 231.5, 2.20, 30100, 37000, 41650), (26.0, 262.5, 2.50, 34100, 42000, 47250),
+        (29.0, 313.8, 2.98, 40800, 50200, 56500), (31.0, 369.8, 3.51, 48050, 59150, 66550)
+    ]
+    for d, sec, peso, r130, r160, r180 in din_656_A:
+        registros.append({
+            "Norma_Marca": "DIN 656", "Tipo": "Seal-Lay (Resistencia Abrasión)", "Composicion": "6x19 (114 hilos)",
+            "Construccion": "Composición A", "Diametro_mm": d, "Peso_kg_m": peso,
+            "Rotura_kN_1960": (r160 * 9.81) / 1000.0, "Rotura_kN_2160": (r180 * 9.81) / 1000.0,
+            "Uso_Principal": "Tambores multicapa / Rozamiento"
+        })
+
+    din_656_D = [
+        (8.0, 27.7, 0.26, 3600, 4400, 5000), (10.0, 38.5, 0.36, 5000, 6150, 6900),
+        (12.0, 56.2, 0.53, 7300, 8950, 10100), (14.0, 77.1, 0.73, 10000, 12300, 13850),
+        (16.0, 94.5, 0.89, 12250, 15100, 17000), (18.0, 129.0, 1.22, 16750, 20650, 23200),
+        (20.0, 154.2, 1.46, 20050, 24650, 27750), (22.0, 197.5, 1.87, 25650, 31600, 35550),
+        (24.0, 224.8, 2.13, 29200, 35950, 40450), (26.0, 276.5, 2.62, 35950, 44250, 49750),
+        (28.0, 308.6, 2.93, 40100, 49350, 55550), (30.0, 368.8, 3.50, 47950, 59000, 66350)
+    ]
+    for d, sec, peso, r130, r160, r180 in din_656_D:
+        registros.append({
+            "Norma_Marca": "DIN 656", "Tipo": "Warrington (Mayor Flexibilidad)", "Composicion": "6x19 (114 hilos)",
+            "Construccion": "Composición D", "Diametro_mm": d, "Peso_kg_m": peso,
+            "Rotura_kN_1960": (r160 * 9.81) / 1000.0, "Rotura_kN_2160": (r180 * 9.81) / 1000.0,
+            "Uso_Principal": "Poleas pequeñas / Flexión alta"
         })
 
     return pd.DataFrame(registros)
 
 
-def seleccionar_cable_mecanismo(carga_tiro_directo_kg: float, coeficiente_seguridad: float = 5.5):
+def verificar_tabla_cables(Q_kg: float = 5000.0, P_ap_kg: float = 150.0, num_ramales: int = 4, coeficiente_seguridad: float = 5.5, *args, **kwargs):
     """
-    Filtra los cables que cumplen con el coeficiente de seguridad requerido.
+    Función requerida por app.py.
+    Calcula la fuerza requerida (F_req) y filtra el DataFrame completo con todos los cables aptos.
     """
-    fuerza_requerida_kN = (carga_tiro_directo_kg * 9.81 / 1000) * coeficiente_seguridad
+    carga_total_kg = Q_kg + P_ap_kg
+    S_max_kg = carga_total_kg / num_ramales
+    F_req_kN = (S_max_kg * 9.81 / 1000.0) * coeficiente_seguridad
+    
     df = obtener_tabla_cables_completa()
-    aptos = df[df['Rotura_kN_1960'] >= fuerza_requerida_kN]
-    return fuerza_requerida_kN, aptos
+    tabla_cables_aptos = df[df['Rotura_kN_1960'] >= F_req_kN].copy()
+    
+    return round(S_max_kg, 2), round(F_req_kN, 2), tabla_cables_aptos
 
 
-if __name__ == "__main__":
-    fuerza, tabla_aptos = seleccionar_cable_mecanismo(2500)
-    print(f"--- Módulo modulo_cable.py Cargas de Rotura Requeridas: {fuerza:.2f} kN ---")
-    print(tabla_aptos[["Norma_Marca", "Composicion", "Diametro_mm", "Rotura_kN_1960"]].to_string())
-
-# Alias de compatibilidad directa para la línea 11 de app.py
-def verificar_tabla_cables(carga_kg=2500, cs=5.5):
-    """Función que llama app.py para obtener la tabla y verificación."""
-    return seleccionar_cable_mecanismo(carga_kg, cs)
+# Alias de compatibilidad
+seleccionar_cable_mecanismo = verificar_tabla_cables
