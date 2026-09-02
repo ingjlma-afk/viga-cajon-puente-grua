@@ -314,7 +314,7 @@ else:
 st.dataframe(
     tabla_mostrar[[
         "Estado_Verificacion", "Norma_Marca", "Composicion", 
-        "Diametro_mm", "CS_Real", "Rotura_kN_1960", "Uso_Principal"
+        "Diametro_mm", "CS_Real", "Rotura_kN_1960"
     ]],
     use_container_width=True
 )
