@@ -282,7 +282,7 @@ S_max, F_req, tabla_cables = verificar_tabla_cables(
     num_ramales=num_ramales
 )
 
-d_cable_sel = tabla_cables[0]["Diámetro [mm]"] if len(tabla_cables) > 0 else 14.0
+d_cable_sel = tabla_cables["Diametro_mm"].iloc[0] if len(tabla_cables) > 0 else 14.0
 
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel, 
