@@ -525,7 +525,45 @@ st.info(f"""
 * **Pérdidas acumuladas por rozamiento:** {res_motor['potencia_teorica_kw'] - res_motor['potencia_util_kw']:.2f} kW  
 * **Torque en el eje del tambor:** {res_motor['torque_tambor_Nm']} N·m a {res_motor['n_tambor_rpm']} rpm.
 """)
+# ------------------------------------------------------------------------------
+# VERIFICACIÓN DEL FRENO DE RETENCIÓN DE CARGA (EJE MOTOR)
+# ------------------------------------------------------------------------------
+from modulo_freno import calcular_freno_carga
 
+st.markdown("---")
+st.subheader("🛑 Freno de Seguridad y Retención de Carga (Eje Veloz)")
+
+M_carga_motor, M_freno_req, kf_aplicado, tabla_frenos = calcular_freno_carga(
+    Q_kg=Q,
+    P_pasteca_kg=peso_pasteca,
+    D_tambor_mm=res_tambor['D_tambor_mm'],
+    i_reduccion=relacion_reduccion, # Usa el valor calculado de la reducción
+    grupo_fem=grupo_fem
+)
+
+st.warning(
+    f"🔒 **Par Estático de Carga en Eje Motor:** {M_carga_motor} N·m | "
+    f"**Coeficiente $k_f$ ({grupo_fem}):** {kf_aplicado} | "
+    f"**Par Mínimo de Frenado Requerido:** **{M_freno_req} N·m**"
+)
+
+st.dataframe(
+    tabla_frenos[["Estado_Freno", "Modelo", "Par_Nominal_Nm", "k_f_Real", "Peso_kg"]],
+    use_container_width=True
+)
+
+opc_frenos = [
+    f"{row['Modelo']} | Par: {row['Par_Nominal_Nm']} N·m ($k_f = {row['k_f_Real']}$)"
+    for _, row in tabla_frenos[~tabla_frenos["Estado_Freno"].str.contains("Insuficiente")].iterrows()
+]
+
+if len(opc_frenos) > 0:
+    freno_elegido_str = st.selectbox("👉 Seleccione el Freno de Retención a montar en el motor:", opc_frenos)
+    idx_fr = opc_frenos.index(freno_elegido_str)
+    freno_sel = tabla_frenos[~tabla_frenos["Estado_Freno"].str.contains("Insuficiente")].iloc[idx_fr]
+    peso_freno_real = float(freno_sel["Peso_kg"])
+else:
+    peso_freno_real = 20.0
 # Pie de Página
 st.markdown("""
     <div class="footer-utn">
