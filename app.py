@@ -525,6 +525,7 @@ st.info(f"""
 * **Pérdidas acumuladas por rozamiento:** {res_motor['potencia_teorica_kw'] - res_motor['potencia_util_kw']:.2f} kW  
 * **Torque en el eje del tambor:** {res_motor['torque_tambor_Nm']} N·m a {res_motor['n_tambor_rpm']} rpm.
 """)
+
 # ------------------------------------------------------------------------------
 # VERIFICACIÓN DEL FRENO DE RETENCIÓN DE CARGA (EJE MOTOR)
 # ------------------------------------------------------------------------------
@@ -537,7 +538,7 @@ M_carga_motor, M_freno_req, kf_aplicado, tabla_frenos = calcular_freno_carga(
     Q_kg=Q,
     P_pasteca_kg=peso_pasteca,
     D_tambor_mm=res_tambor['D_tambor_mm'],
-    i_reduccion=relacion_reduccion, # Usa el valor calculado de la reducción
+    i_reduccion=res_motor['i_reductor'],
     grupo_fem=grupo_fem
 )
 
@@ -564,6 +565,7 @@ if len(opc_frenos) > 0:
     peso_freno_real = float(freno_sel["Peso_kg"])
 else:
     peso_freno_real = 20.0
+
 # Pie de Página
 st.markdown("""
     <div class="footer-utn">
