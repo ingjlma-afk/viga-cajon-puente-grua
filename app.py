@@ -385,7 +385,10 @@ with col_h2:
 with col_h3:
     h3_user = st.number_input("Adoptar $h_3$ (Polea Reenvío):", value=float(h_actual['h3']), step=0.5)
 
-# CÁLCULO DE GEOMETRÍA CON LOS VALORES ADOPTADOS
+# Detectar la marca del cable para aplicar el factor c_flex
+marca_cable_sel = str(cable_sel["Norma_Marca"]) if 'cable_sel' in locals() else "DIN"
+
+# CÁLCULO DE GEOMETRÍA CON LOS VALORES ADOPTADOS Y MARCA DE CABLE
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel,
     H_elevacion_m=he,
@@ -396,7 +399,8 @@ res_tambor = calcular_dimensiones_tambor(
     grupo_fem=grupo_fem,
     h1_adoptado=h1_user,
     h2_adoptado=h2_user,
-    h3_adoptado=h3_user
+    h3_adoptado=h3_user,
+    marca_cable=marca_cable_sel
 )
 
 # VERIFICACIÓN TÉCNICA

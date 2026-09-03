@@ -1,12 +1,11 @@
 # modulo_tambor.py
 """
 Módulo de dimensionamiento de tambor y poleas para puentes grúa.
-Normativa DIN 15020 / FEM 9.511 con verificación de coeficientes h1, h2, h3.
+Aplica factor de flexibilidad c_flex para cables de alto rendimiento (Verope).
 """
 
 import math
 
-# Coeficientes MÍNIMOS normativos h1 (tambor), h2 (polea principal), h3 (polea reenvío)
 COEFICIENTES_H_MIN_FEM = {
     "1Bm (M3)": {"h1": 14.0, "h2": 16.0, "h3": 11.2},
     "1Am (M4)": {"h1": 16.0, "h2": 18.0, "h3": 12.5},
@@ -27,19 +26,26 @@ def calcular_dimensiones_tambor(
     h1_adoptado: float = 18.0,
     h2_adoptado: float = 20.0,
     h3_adoptado: float = 14.0,
+    marca_cable: str = "DIN",
     *args, **kwargs
 ):
     """
-    Calcula la geometría evaluando los coeficientes h adoptados por el alumno contra los mínimos de la norma.
+    Calcula la geometría aplicando un descuento por flexibilidad si el cable es Verope.
     """
-    h_min = COEFICIENTES_H_MIN_FEM.get(grupo_fem, {"h1": 18.0, "h2": 20.0, "h3": 14.0})
+    h_base = COEFICIENTES_H_MIN_FEM.get(grupo_fem, {"h1": 18.0, "h2": 20.0, "h3": 14.0})
 
-    # Verificación de cumplimiento
-    h1_valido = h1_adoptado >= h_min["h1"]
-    h2_valido = h2_adoptado >= h_min["h2"]
-    h3_valido = h3_adoptado >= h_min["h3"]
+    # Factor de flexibilidad: Verope permite un 12% menos de diámetro por su construcción
+    c_flex = 0.88 if "Verope" in str(marca_cable) else 1.00
 
-    # Diámetros reales calculados con los coeficientes que decidió usar el alumno
+    h1_min = round(h_base["h1"] * c_flex, 1)
+    h2_min = round(h_base["h2"] * c_flex, 1)
+    h3_min = round(h_base["h3"] * c_flex, 1)
+
+    # Verificación
+    h1_valido = h1_adoptado >= h1_min
+    h2_valido = h2_adoptado >= h2_min
+    h3_valido = h3_adoptado >= h3_min
+
     D_tambor_mm = d_cable_mm * h1_adoptado
     D_polea_mm = d_cable_mm * h2_adoptado
     D_reenvio_mm = d_cable_mm * h3_adoptado
@@ -50,7 +56,7 @@ def calcular_dimensiones_tambor(
     if "Gemelo" in str(tipo_polipasto):
         longitud_util_m = H_elevacion_m * (num_ramales / 2.0)
         vueltas_reserva_totales = vueltas_reserva * 2
-        L_centro_mm = D_polea_mm  # Separación central igual al diámetro de poleas de pasteca
+        L_centro_mm = D_polea_mm
     else:
         longitud_util_m = H_elevacion_m * num_ramales
         vueltas_reserva_totales = vueltas_reserva
@@ -77,13 +83,11 @@ def calcular_dimensiones_tambor(
         "D_reenvio_mm": round(D_reenvio_mm, 1),
         "L_tambor_mm": round(L_tambor_total_mm, 1),
         "L_centro_mm": round(L_centro_mm, 1),
-        "paso_ranura_mm": round(paso_ranura_mm, 2),
-        "vueltas_totales": round(vueltas_totales, 1),
-        "longitud_cable_m": round(longitud_total_cable_m, 2),
         "peso_cable_kg": peso_cable_total_kg,
         "peso_tambor_kg": peso_tambor_kg,
-        "h1_min": h_min["h1"], "h2_min": h_min["h2"], "h3_min": h_min["h3"],
-        "h1_valido": h1_valido, "h2_valido": h2_valido, "h3_valido": h3_valido
+        "h1_min": h1_min, "h2_min": h2_min, "h3_min": h3_min,
+        "h1_valido": h1_valido, "h2_valido": h2_valido, "h3_valido": h3_valido,
+        "c_flex": c_flex
     }
 
 def estimar_peso_pasteca(Q: float = 5000.0, num_ramales: int = 4, *args, **kwargs):
