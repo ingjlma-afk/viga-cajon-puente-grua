@@ -534,7 +534,7 @@ from modulo_freno import calcular_freno_carga
 st.markdown("---")
 st.subheader("🛑 Freno de Seguridad y Retención de Carga (Eje Veloz)")
 
-M_carga_motor, M_freno_req, kf_aplicado, tabla_frenos = calcular_freno_carga(
+M_carga_motor, M_freno_req, kf_aplicado, tabla_frenos, url_catalogo = calcular_freno_carga(
     Q_kg=Q,
     P_pasteca_kg=peso_pasteca,
     D_tambor_mm=res_tambor['D_tambor_mm'],
@@ -548,18 +548,22 @@ st.warning(
     f"**Par Mínimo de Frenado Requerido:** **{M_freno_req} N·m**"
 )
 
+st.markdown(f"📖 **Fuente de Datos / Catálogo Comercial de Referencia:** "
+            f"[Ver Ficha Técnica Oficial INTORQ / Kendrion BFK458]({url_catalogo})  \n"
+            f"*Otras marcas comerciales equivalentes:* **SEW-Eurodrive (BMG/BM)**, **Warner Electric (ERD)**, **Binder / Kendrion**.")
+
 st.dataframe(
-    tabla_frenos[["Estado_Freno", "Modelo", "Par_Nominal_Nm", "k_f_Real", "Peso_kg"]],
+    tabla_frenos[["Estado_Freno", "Marca_Serie", "Modelo", "Par_Nominal_Nm", "k_f_Real", "Peso_kg", "Potencia_W"]],
     use_container_width=True
 )
 
 opc_frenos = [
-    f"{row['Modelo']} | Par: {row['Par_Nominal_Nm']} N·m ($k_f = {row['k_f_Real']}$)"
+    f"{row['Marca_Serie']} ({row['Modelo']}) | Par: {row['Par_Nominal_Nm']} N·m ($k_f = {row['k_f_Real']}$)"
     for _, row in tabla_frenos[~tabla_frenos["Estado_Freno"].str.contains("Insuficiente")].iterrows()
 ]
 
 if len(opc_frenos) > 0:
-    freno_elegido_str = st.selectbox("👉 Seleccione el Freno de Retención a montar en el motor:", opc_frenos)
+    freno_elegido_str = st.selectbox("👉 Seleccione el Freno de Retención comercial a instalar:", opc_frenos)
     idx_fr = opc_frenos.index(freno_elegido_str)
     freno_sel = tabla_frenos[~tabla_frenos["Estado_Freno"].str.contains("Insuficiente")].iloc[idx_fr]
     peso_freno_real = float(freno_sel["Peso_kg"])
