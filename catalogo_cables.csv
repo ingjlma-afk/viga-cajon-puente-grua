@@ -1,0 +1,211 @@
+Norma_Marca,Diametro_mm,Peso_kg_m,Rotura_kgf,Rotura_kN,Tipo
+DIN 655 Comp. A (6x19),6.5,0.135,2300,22.56,Convencional DIN
+DIN 655 Comp. A (6x19),8.0,0.21,3600,35.32,Convencional DIN
+DIN 655 Comp. A (6x19),9.5,0.3,5150,50.52,Convencional DIN
+DIN 655 Comp. A (6x19),11.0,0.41,7000,68.67,Convencional DIN
+DIN 655 Comp. A (6x19),12.5,0.54,9150,89.76,Convencional DIN
+DIN 655 Comp. A (6x19),14.0,0.68,11600,113.8,Convencional DIN
+DIN 655 Comp. A (6x19),16.0,0.85,14300,140.29,Convencional DIN
+DIN 655 Comp. A (6x19),17.5,1.02,17350,170.2,Convencional DIN
+DIN 655 Comp. A (6x19),19.0,1.22,20600,202.09,Convencional DIN
+DIN 655 Comp. A (6x19),20.0,1.43,24200,237.4,Convencional DIN
+DIN 655 Comp. A (6x19),22.0,1.66,28050,275.17,Convencional DIN
+DIN 655 Comp. B (6x37),9.0,0.26,4450,43.65,Convencional DIN
+DIN 655 Comp. B (6x37),10.0,0.34,5650,55.43,Convencional DIN
+DIN 655 Comp. B (6x37),11.0,0.41,7000,68.67,Convencional DIN
+DIN 655 Comp. B (6x37),12.0,0.5,8450,82.89,Convencional DIN
+DIN 655 Comp. B (6x37),13.0,0.59,10050,98.59,Convencional DIN
+DIN 655 Comp. B (6x37),14.0,0.7,11800,115.76,Convencional DIN
+DIN 655 Comp. B (6x37),15.0,0.81,13650,133.91,Convencional DIN
+DIN 655 Comp. B (6x37),16.0,0.93,15700,154.02,Convencional DIN
+DIN 655 Comp. B (6x37),18.0,1.14,19300,189.33,Convencional DIN
+DIN 655 Comp. B (6x37),19.0,1.34,22600,221.71,Convencional DIN
+DIN 655 Comp. B (6x37),21.0,1.65,27900,273.7,Convencional DIN
+DIN 655 Comp. B (6x37),24.0,2.0,33750,331.09,Convencional DIN
+DIN 655 Comp. B (6x37),26.0,2.38,40200,394.36,Convencional DIN
+DIN 655 Comp. B (6x37),28.0,2.8,47150,462.54,Convencional DIN
+DIN 655 Comp. B (6x37),30.0,3.24,54600,535.63,Convencional DIN
+DIN 655 Comp. B (6x37),32.0,3.72,62750,615.58,Convencional DIN
+DIN 655 Comp. B (6x37),35.0,4.24,71400,700.43,Convencional DIN
+DIN 655 Comp. B (6x37),37.0,4.78,80600,790.69,Convencional DIN
+DIN 655 Comp. B (6x37),40.0,5.36,90400,886.82,Convencional DIN
+DIN 655 Comp. B (6x37),42.0,5.97,100700,987.87,Convencional DIN
+DIN 655 Comp. B (6x37),44.0,6.82,111600,1094.79,Convencional DIN
+DIN 655 Comp. C (8x37),16.0,0.84,13400,131.45,Convencional DIN
+DIN 655 Comp. C (8x37),19.0,1.14,18200,178.54,Convencional DIN
+DIN 655 Comp. C (8x37),20.0,1.3,20900,205.03,Convencional DIN
+DIN 655 Comp. C (8x37),21.0,1.49,23800,233.48,Convencional DIN
+DIN 655 Comp. C (8x37),23.0,1.68,26900,263.89,Convencional DIN
+DIN 655 Comp. C (8x37),24.0,1.95,31300,307.05,Convencional DIN
+DIN 655 Comp. C (8x37),25.0,2.15,34400,337.46,Convencional DIN
+DIN 655 Comp. C (8x37),27.0,2.32,37200,364.93,Convencional DIN
+DIN 655 Comp. C (8x37),30.0,2.81,45000,441.45,Convencional DIN
+DIN 655 Comp. C (8x37),32.0,3.35,53550,525.33,Convencional DIN
+DIN 655 Comp. C (8x37),35.0,3.93,62850,616.56,Convencional DIN
+DIN 655 Comp. C (8x37),37.0,4.56,72900,715.15,Convencional DIN
+DIN 655 Comp. C (8x37),40.0,5.23,83700,821.09,Convencional DIN
+DIN 655 Comp. C (8x37),43.0,5.95,95200,933.91,Convencional DIN
+DIN 655 Comp. C (8x37),45.0,6.72,107500,1054.58,Convencional DIN
+DIN 655 Comp. C (8x37),48.0,7.52,120350,1180.63,Convencional DIN
+DIN 655 Comp. C (8x37),51.0,8.39,134300,1317.48,Convencional DIN
+DIN 655 Comp. C (8x37),54.0,9.3,148800,1459.73,Convencional DIN
+DIN 655 Comp. C (8x37),58.0,11.25,180000,1765.8,Convencional DIN
+DIN 656 Seale A (6x19),8.0,0.24,4150,40.71,Convencional DIN
+DIN 656 Seale A (6x19),10.0,0.37,6450,63.27,Convencional DIN
+DIN 656 Seale A (6x19),12.0,0.55,9250,90.74,Convencional DIN
+DIN 656 Seale A (6x19),14.0,0.74,12600,123.61,Convencional DIN
+DIN 656 Seale A (6x19),16.0,0.94,16500,161.87,Convencional DIN
+DIN 656 Seale A (6x19),18.0,1.24,20850,204.54,Convencional DIN
+DIN 656 Seale A (6x19),20.0,1.54,25750,252.61,Convencional DIN
+DIN 656 Seale A (6x19),22.0,1.87,31200,306.07,Convencional DIN
+DIN 656 Seale A (6x19),24.0,2.22,37100,363.95,Convencional DIN
+DIN 656 Seale A (6x19),26.0,2.61,43500,426.74,Convencional DIN
+DIN 656 Seale A (6x19),28.0,3.03,50400,494.42,Convencional DIN
+DIN 656 Seale A (6x19),30.0,3.48,58150,570.45,Convencional DIN
+DIN 656 Seale B (8x19),14.0,0.67,10800,105.95,Convencional DIN
+DIN 656 Seale B (8x19),16.0,0.88,14100,138.32,Convencional DIN
+DIN 656 Seale B (8x19),17.5,1.05,16900,165.79,Convencional DIN
+DIN 656 Seale B (8x19),19.0,1.24,19900,195.22,Convencional DIN
+DIN 656 Seale B (8x19),20.0,1.38,22100,216.8,Convencional DIN
+DIN 656 Seale B (8x19),22.0,1.65,26400,258.98,Convencional DIN
+DIN 656 Seale B (8x19),24.0,2.01,31900,312.94,Convencional DIN
+DIN 656 Seale B (8x19),25.0,2.15,34400,337.46,Convencional DIN
+DIN 656 Seale B (8x19),26.0,2.37,37600,368.86,Convencional DIN
+DIN 656 Seale B (8x19),28.0,2.69,43400,425.75,Convencional DIN
+DIN 656 Seale C (6x37),20.0,1.48,24000,235.44,Convencional DIN
+DIN 656 Seale C (6x37),22.0,1.76,29000,284.49,Convencional DIN
+DIN 656 Seale C (6x37),25.0,2.27,37500,367.88,Convencional DIN
+DIN 656 Seale C (6x37),26.0,2.46,40500,397.31,Convencional DIN
+DIN 656 Seale C (6x37),28.0,2.85,47000,461.07,Convencional DIN
+DIN 656 Seale C (6x37),30.0,3.27,54000,529.74,Convencional DIN
+DIN 656 Seale C (6x37),32.0,3.72,61500,603.32,Convencional DIN
+DIN 656 Seale C (6x37),35.0,4.45,73500,721.04,Convencional DIN
+DIN 656 Seale C (6x37),38.0,5.24,86500,848.57,Convencional DIN
+DIN 656 Warr. D (6x19),8.0,0.24,4050,39.73,Convencional DIN
+DIN 656 Warr. D (6x19),10.0,0.38,6300,61.8,Convencional DIN
+DIN 656 Warr. D (6x19),12.0,0.55,9100,89.27,Convencional DIN
+DIN 656 Warr. D (6x19),14.0,0.74,12400,121.64,Convencional DIN
+DIN 656 Warr. D (6x19),16.0,0.96,16200,158.92,Convencional DIN
+DIN 656 Warr. D (6x19),18.0,1.22,20500,201.11,Convencional DIN
+DIN 656 Warr. D (6x19),20.0,1.51,25300,248.19,Convencional DIN
+DIN 656 Warr. D (6x19),22.0,1.83,30600,300.19,Convencional DIN
+DIN 656 Warr. D (6x19),24.0,2.18,36400,357.08,Convencional DIN
+DIN 656 Warr. D (6x19),26.0,2.55,42700,418.89,Convencional DIN
+DIN 656 Warr. D (6x19),28.0,2.97,49600,486.58,Convencional DIN
+DIN 656 Warr. D (6x19),30.0,3.39,56900,558.19,Convencional DIN
+Verope Verotop P,16.0,1.248,24638,241.7,Verope Especial
+Verope Verotop P,17.0,1.408,27808,272.8,Verope Especial
+Verope Verotop P,18.0,1.579,31172,305.8,Verope Especial
+Verope Verotop P,19.0,1.759,34740,340.8,Verope Especial
+Verope Verotop P,20.0,1.949,38491,377.6,Verope Especial
+Verope Verotop P,21.0,2.149,42436,416.3,Verope Especial
+Verope Verotop P,22.0,2.359,46575,456.9,Verope Especial
+Verope Verotop P,24.0,2.807,55423,543.7,Verope Especial
+Verope Verotop P,26.0,3.294,65046,638.1,Verope Especial
+Verope Verotop P,28.0,3.821,75443,740.1,Verope Especial
+Verope Verotop P,30.0,4.386,86606,849.6,Verope Especial
+Verope Verotop XP,17.0,1.446,28716,281.7,Verope Especial
+Verope Verotop XP,18.0,1.621,32192,315.8,Verope Especial
+Verope Verotop XP,19.0,1.806,35872,351.9,Verope Especial
+Verope Verotop XP,20.0,2.001,39745,389.9,Verope Especial
+Verope Verotop XP,22.0,2.421,48094,471.8,Verope Especial
+Verope Verotop XP,24.0,2.882,57237,561.5,Verope Especial
+Verope Verotop XP,26.0,3.382,67176,659.0,Verope Especial
+Verope Verotop XP,28.0,3.922,77910,764.3,Verope Especial
+Verope Verotop XP,30.0,4.503,89429,877.3,Verope Especial
+Verope Verotop,8.0,0.313,6228,61.1,Verope Especial
+Verope Verotop,10.0,0.49,9725,95.4,Verope Especial
+Verope Verotop,12.0,0.705,14006,137.4,Verope Especial
+Verope Verotop,14.0,0.96,19062,187.0,Verope Especial
+Verope Verotop,16.0,1.254,24903,244.3,Verope Especial
+Verope Verotop,18.0,1.587,31519,309.2,Verope Especial
+Verope Verotop,20.0,1.959,38909,381.7,Verope Especial
+Verope Verotop,22.0,2.371,47085,461.9,Verope Especial
+Verope Verotop,24.0,2.821,56035,549.7,Verope Especial
+Verope Verotop,26.0,3.311,65760,645.1,Verope Especial
+Verope Verotop,28.0,3.84,76269,748.2,Verope Especial
+Verope Verotop,30.0,4.408,87553,858.9,Verope Especial
+Verope Verotop S,13.0,0.847,16921,166.0,Verope Especial
+Verope Verotop S,14.0,0.982,19623,192.5,Verope Especial
+Verope Verotop S,16.0,1.283,25627,251.4,Verope Especial
+Verope Verotop S,18.0,1.623,32436,318.2,Verope Especial
+Verope Verotop S,20.0,2.004,40041,392.8,Verope Especial
+Verope Verotop S,22.0,2.425,48451,475.3,Verope Especial
+Verope Verotop S,24.0,2.886,57666,565.7,Verope Especial
+Verope Verotop S,26.0,3.387,67676,663.9,Verope Especial
+Verope Verotop S,28.0,3.928,78491,770.0,Verope Especial
+Verope Verotop S,30.0,4.51,90102,883.9,Verope Especial
+Verope Verotop S+,13.0,0.867,18257,179.1,Verope Especial
+Verope Verotop S+,14.0,1.005,21172,207.7,Verope Especial
+Verope Verotop S+,16.0,1.313,27655,271.3,Verope Especial
+Verope Verotop S+,18.0,1.662,35005,343.4,Verope Especial
+Verope Verotop S+,20.0,2.051,43221,424.0,Verope Especial
+Verope Verotop S+,22.0,2.482,52294,513.0,Verope Especial
+Verope Verotop S+,24.0,2.954,62232,610.5,Verope Especial
+Verope Verotop S+,26.0,3.467,73038,716.5,Verope Especial
+Verope Verotop S+,28.0,4.021,84709,831.0,Verope Especial
+Verope Verotop S+,30.0,4.616,97237,953.9,Verope Especial
+Verope Verotop E,8.0,0.305,5627,55.2,Verope Especial
+Verope Verotop E,10.0,0.477,8787,86.2,Verope Especial
+Verope Verotop E,12.0,0.687,12650,124.1,Verope Especial
+Verope Verotop E,14.0,0.935,17227,169.0,Verope Especial
+Verope Verotop E,16.0,1.222,22497,220.7,Verope Especial
+Verope Verotop E,18.0,1.546,28471,279.3,Verope Especial
+Verope Verotop E,20.0,1.909,35148,344.8,Verope Especial
+Verope Verotop E,22.0,2.31,42528,417.2,Verope Especial
+Verope Verotop E,24.0,2.749,50612,496.5,Verope Especial
+Verope Verotop E,26.0,3.226,59398,582.7,Verope Especial
+Verope Verotop E,28.0,3.741,68889,675.8,Verope Especial
+Verope Verotop E,30.0,4.295,79083,775.8,Verope Especial
+Verope Vero 4,8.0,0.27,5698,55.9,Verope Especial
+Verope Vero 4,10.0,0.421,8909,87.4,Verope Especial
+Verope Vero 4,12.0,0.607,12834,125.9,Verope Especial
+Verope Vero 4,14.0,0.826,17462,171.3,Verope Especial
+Verope Vero 4,16.0,1.078,22813,223.8,Verope Especial
+Verope Vero 4,18.0,1.365,28868,283.2,Verope Especial
+Verope Vero 4,20.0,1.685,35647,349.7,Verope Especial
+Verope Vero 4,22.0,2.039,43129,423.1,Verope Especial
+Verope Vero 4,24.0,2.426,51325,503.5,Verope Especial
+Verope Vero 4,26.0,2.848,60245,591.0,Verope Especial
+Verope Vero 4,28.0,3.303,69867,685.4,Verope Especial
+Verope Vero 4,30.0,3.791,80204,786.8,Verope Especial
+Verope Verostar 8,8.0,0.276,5403,53.0,Verope Especial
+Verope Verostar 8,10.0,0.431,8440,82.8,Verope Especial
+Verope Verostar 8,12.0,0.621,12161,119.3,Verope Especial
+Verope Verostar 8,14.0,0.845,16544,162.3,Verope Especial
+Verope Verostar 8,16.0,1.104,21611,212.0,Verope Especial
+Verope Verostar 8,18.0,1.397,27350,268.3,Verope Especial
+Verope Verostar 8,20.0,1.725,33772,331.3,Verope Especial
+Verope Verostar 8,22.0,2.087,40866,400.9,Verope Especial
+Verope Verostar 8,24.0,2.484,48634,477.1,Verope Especial
+Verope Verostar 8,26.0,2.915,57074,559.9,Verope Especial
+Verope Verostar 8,28.0,3.38,66187,649.3,Verope Especial
+Verope Verostar 8,30.0,3.881,75984,745.4,Verope Especial
+Verope Veropro 8 RS,17.0,1.337,27492,269.7,Verope Especial
+Verope Veropro 8 RS,18.0,1.499,30826,302.4,Verope Especial
+Verope Veropro 8 RS,19.0,1.67,34342,336.9,Verope Especial
+Verope Veropro 8 RS,20.0,1.851,38053,373.3,Verope Especial
+Verope Veropro 8 RS,22.0,2.239,46045,451.7,Verope Especial
+Verope Veropro 8 RS,24.0,2.665,54791,537.5,Verope Especial
+Verope Veropro 8 RS,26.0,3.128,64312,630.9,Verope Especial
+Verope Veropro 8 RS,28.0,3.627,74577,731.6,Verope Especial
+Verope Veropro 8 RS,30.0,4.164,85617,839.9,Verope Especial
+Verope Verotech 10,10.0,0.494,9878,96.9,Verope Especial
+Verope Verotech 10,12.0,0.712,14220,139.5,Verope Especial
+Verope Verotech 10,14.0,0.969,19358,189.9,Verope Especial
+Verope Verotech 10,16.0,1.266,25290,248.1,Verope Especial
+Verope Verotech 10,18.0,1.602,32008,314.0,Verope Especial
+Verope Verotech 10,20.0,1.978,39511,387.6,Verope Especial
+Verope Verotech 10,22.0,2.393,47808,469.0,Verope Especial
+Verope Verotech 10,24.0,2.848,56901,558.2,Verope Especial
+Verope Verotech 10,26.0,3.342,66779,655.1,Verope Especial
+Verope Verotech 10,28.0,3.876,77452,759.8,Verope Especial
+Verope Verotech 10,30.0,4.45,88909,872.2,Verope Especial
+Verope Verosteel 8,16.0,1.164,23965,235.1,Verope Especial
+Verope Verosteel 8,18.0,1.474,30336,297.6,Verope Especial
+Verope Verosteel 8,20.0,1.819,37452,367.4,Verope Especial
+Verope Verosteel 8,22.0,2.202,45321,444.6,Verope Especial
+Verope Verosteel 8,24.0,2.62,53935,529.1,Verope Especial
+Verope Verosteel 8,26.0,3.075,63293,620.9,Verope Especial
+Verope Verosteel 8,28.0,3.566,73405,720.1,Verope Especial
+Verope Verosteel 8,30.0,4.094,84271,826.7,Verope Especial
