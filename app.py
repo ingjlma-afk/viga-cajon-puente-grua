@@ -570,6 +570,32 @@ if len(opc_frenos) > 0:
 else:
     peso_freno_real = 20.0
 
+from modulo_esquema import generar_diagrama_cinematico
+
+st.markdown("---")
+st.subheader("🗺️ Esquema Kinemático y Distribución de Componentes en el Carro")
+
+fig_croquis = generar_diagrama_cinematico(
+    D_tambor_mm=res_tambor['D_tambor_mm'],
+    L_tambor_mm=res_tambor['L_tambor_mm'],
+    D_polea_mm=res_tambor['D_polea_mm'],
+    num_ramales=num_ramales,
+    tipo_polipasto=tipo_polipasto
+)
+
+st.plotly_chart(fig_croquis, use_container_width=True)
+
+st.markdown("""
+**Leyenda y Orden del Tren de Mando (de Izquierda a Derecha):**
+1. **[1] Freno Electromagnético:** Montado en el eje veloz del motor (retención estática).
+2. **[2] Motor Eléctrico:** Accionamiento principal.
+3. **[3] Reductor de Velocidad:** Reducción de rpm e incremento de torque.
+4. **[4] Acoplamiento de Tambor:** Conexión hacia el tambor de arrollamiento.
+5. **[5] Tambor Acanalado:** Arrollamiento helicoidal de cable.
+6. **[6] Cables de Acero:** Ramales descendentes de suspensión.
+7. **[7] Pasteca / Aparejo Inferior:** Conjunto de poleas e integración del gancho de carga.
+""")
+
 # Pie de Página
 st.markdown("""
     <div class="footer-utn">
