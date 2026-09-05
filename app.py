@@ -424,6 +424,7 @@ if "Gemelo" in str(tipo_polipasto):
 peso_mecanismos_est = 350.0
 P_carro_real = peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + peso_mecanismos_est
 CARGA_TOTAL_ACTUANTE = Q + P_carro_real
+
 # =======================================================
 # CÁLCULO ESTRUCTURAL DE LA VIGA
 # =======================================================
@@ -525,6 +526,63 @@ st.info(f"""
 * **Pérdidas acumuladas por rozamiento:** {res_motor['potencia_teorica_kw'] - res_motor['potencia_util_kw']:.2f} kW  
 * **Torque en el eje del tambor:** {res_motor['torque_tambor_Nm']} N·m a {res_motor['n_tambor_rpm']} rpm.
 """)
+
+# ------------------------------------------------------------------------------
+# SELECCIÓN Y EVALUACIÓN DEL REDUCTOR INDUSTRIAL (CATÁLOGO LENTAX 820)
+# ------------------------------------------------------------------------------
+from modulo_reductor import evaluar_reductores_elevacion
+
+st.markdown("---")
+st.subheader("⚙️ Selección del Reductor Industrial de Ejes Paralelos (LENTAX 820)")
+
+n_motor_std = 1500.0  # Motor IEC estándar 4 polos (50 Hz)
+n_t = res_motor['n_tambor_rpm'] if res_motor['n_tambor_rpm'] > 0 else 15.0
+i_teorico_req = n_motor_std / n_t
+
+st.info(f"🎯 **Parámetros Requeridos:** Velocidad Tambor = **{n_t:.2f} rpm** | "
+        f"Relación Teórica Requerida: **$i_{{calc}} = {i_teorico_req:.2f}:1$** | "
+        f"Potencia Motor: **{res_motor['potencia_motor_kw']} kW**")
+
+tabla_reductores = evaluar_reductores_elevacion(
+    i_requerido=i_teorico_req,
+    P_motor_kW=res_motor['potencia_motor_kw'],
+    factor_servicio=1.3
+)
+
+st.dataframe(
+    tabla_reductores[["Estado_Reductor", "Modelo", "Serie", "i_nominal", "Desvio_i_%", "P_adm_kW", "Capacidad_Potencia", "Peso_kg", "d2_eje_mm"]],
+    use_container_width=True
+)
+
+reductores_validos = tabla_reductores[tabla_reductores["Estado_Reductor"] == "🟢 Adecuado / Verificado"]
+
+if not reductores_validos.empty:
+    opc_red = [
+        f"{r['Modelo']} (i={r['i_nominal']}:1 | P_adm={r['P_adm_kW']} kW | Peso={r['Peso_kg']} kg)"
+        for _, r in reductores_validos.iterrows()
+    ]
+    red_sel_str = st.selectbox("👉 Seleccionar Modelo de Reductor LENTAX:", opc_red)
+    idx_r = opc_red.index(red_sel_str)
+    reductor_elegido = reductores_validos.iloc[idx_r]
+
+    i_reductor_real = float(reductor_elegido["i_nominal"])
+    peso_reductor_real = float(reductor_elegido["Peso_kg"])
+    v_elev_real = (ve_m_min * (i_teorico_req / i_reductor_real))
+    st.success(f"✅ **Reductor Adoptado:** {reductor_elegido['Modelo']} | Velocidad de elevación resultante: **{v_elev_real:.2f} m/min**")
+else:
+    st.warning("⚠️ No hay modelos en el rango estrecho de ±15% de desvío. Seleccione el más próximo de la lista general:")
+    opc_todas = [
+        f"{r['Modelo']} (i={r['i_nominal']}:1 | Desvío={r['Desvio_i_%']}%)"
+        for _, r in tabla_reductores.iterrows()
+    ]
+    red_sel_str = st.selectbox("👉 Seleccionar Modelo Alternativo LENTAX:", opc_todas)
+    idx_r = opc_todas.index(red_sel_str)
+    reductor_elegido = tabla_reductores.iloc[idx_r]
+    i_reductor_real = float(reductor_elegido["i_nominal"])
+    peso_reductor_real = float(reductor_elegido["Peso_kg"])
+
+# Actualizamos la clave del diccionario para que el freno tome la relación adoptada del catálogo Lentax
+res_motor['i_reductor'] = i_reductor_real
 
 # ------------------------------------------------------------------------------
 # VERIFICACIÓN DEL FRENO DE RETENCIÓN DE CARGA (EJE MOTOR)
