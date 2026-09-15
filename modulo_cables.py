@@ -27,3 +27,6 @@ def verificar_cable_elevacion(S_tiro_max_kg: float, coef_seguridad_norma: float 
 
     df["Estado"] = df.apply(estado, axis=1)
     return df
+# Alias de compatibilidad retroactiva
+verificar_tabla_cables = verificar_cable_elevacion
+obtener_tabla_cables_completa = obtener_catalogo_cables_completo

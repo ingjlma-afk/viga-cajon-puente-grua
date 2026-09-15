@@ -8,7 +8,11 @@ import ezdxf
 from ezdxf import recover
 
 # Importación de módulos propios
-from modulo_cables import verificar_tabla_cables, obtener_tabla_cables_completa
+from modulo_cables import verificar_cable_elevacion, obtener_catalogo_cables_completo
+
+# Alias para compatibilidad si alguna otra función vieja los llama
+verificar_tabla_cables = verificar_cable_elevacion
+obtener_tabla_cables_completa = obtener_catalogo_cables_completo
 from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
 
 # Configuración de página con título e icono
@@ -19,34 +23,94 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Inyección de CSS para personalizar el diseño
+# Inyección de CSS para personalizar el diseño (Modo Consola de Control + UTN)
 st.markdown("""
-    <style>
+<style>
+    /* Fondo principal de consola con marca de agua sutil del escudo UTN */
     .stApp {
-        background-color: #f8fafc;
+        background-color: #0b111e;
+        background-image: radial-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 0),
+                          url("https://upload.wikimedia.org/wikipedia/commons/6/67/UTN_logo.jpg");
+        background-size: 24px 24px, 420px auto;
+        background-position: 0 0, calc(100% - 40px) calc(100% - 40px);
+        background-repeat: repeat, no-repeat;
+        background-attachment: fixed;
+        color: #e2e8f0;
     }
+
+    /* Barra lateral estilo cabina técnica */
+    section[data-testid="stSidebar"] {
+        background-color: #070d18 !important;
+        border-right: 1px solid #1e293b;
+    }
+
+    /* Cabecera institucional UTN adaptada a consola */
     .header-utn {
-        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+        background: linear-gradient(135deg, #070d18 0%, #111c30 100%);
+        border: 1px solid #1e3a5f;
+        border-left: 6px solid #f59e0b;
         color: white;
         padding: 20px;
-        border-radius: 10px;
+        border-radius: 8px;
         margin-bottom: 25px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     }
+
+    /* Títulos y encabezados con tipografía técnica */
+    h1, h2, h3, h4 {
+        color: #38bdf8 !important;
+        font-family: 'Consolas', 'Courier New', monospace;
+        letter-spacing: 0.5px;
+    }
+
+    /* Tarjetas de métricas tipo display digital */
+    div[data-testid="stMetric"] {
+        background-color: #111c30;
+        border: 1px solid #1e3a5f;
+        border-left: 5px solid #f59e0b !important;
+        border-radius: 6px;
+        padding: 10px 16px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    
+    div[data-testid="stMetric"] label {
+        color: #94a3b8 !important;
+        font-size: 0.85rem !important;
+        text-transform: uppercase;
+    }
+    
     div[data-testid="stMetricValue"] {
-        font-size: 22px;
-        color: #1e3a8a;
+        color: #f8fafc !important;
+        font-family: 'Consolas', monospace;
+        font-size: 24px !important;
         font-weight: bold;
     }
+
+    /* Paneles de avisos y alertas */
+    div[data-testid="stAlert"] {
+        background-color: #0f233a !important;
+        border: 1px solid #0284c7 !important;
+        color: #e0f2fe !important;
+        border-radius: 6px;
+    }
+
+    /* Tablas en modo oscuro */
+    div[data-testid="stDataFrame"] {
+        border: 1px solid #1e3a8a;
+        border-radius: 6px;
+        background-color: #0c1524;
+    }
+
+    /* Pie de página adaptado */
     .footer-utn {
         text-align: center;
         padding: 15px;
         margin-top: 50px;
-        border-top: 1px solid #e2e8f0;
+        border-top: 1px solid #1e293b;
         color: #64748b;
         font-size: 13px;
     }
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
 # Encabezado visual en pantalla
