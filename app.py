@@ -1108,7 +1108,7 @@ with col_rep2:
         'R_max_test': res_testera['R_max_testera_ton'],
         'R_min_test': res_testera['R_min_testera_ton'],
         'Pr_ton': res_testera['P_rueda_max_ton'],
-        ''sec_testera': res_testera.get('nombre_seccion', perfil_testera_adoptado),
+        'sec_testera': res_testera.get('nombre_seccion', perfil_testera_adoptado),
         'sigma_test': res_testera['sigma_real_kgf_cm2'],
         'd_rueda': d_rueda_optima,
         'riel': riel_adoptado,
