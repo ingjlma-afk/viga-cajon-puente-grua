@@ -302,6 +302,13 @@ else:
             st.sidebar.error(f"Error al procesar DXF: {e}")
 
 with st.sidebar.expander("🌉 Geometría del Puente y Cargas", expanded=True):
+    tipo_puente = st.radio(
+        "Tipología Estructural del Puente:",
+        ["Doble Viga (Birraíl - Carro Apoyado)", "Monoviga (Viga Simple - Polipasto Suspendido)"],
+        index=0
+    )
+    es_birrail = "Doble Viga" in tipo_puente
+
     Luz = st.number_input("Luz del puente (L) [m]", value=20.0, step=1.0)
     al = st.number_input("Distancia entre ruedas del carro (al) [mm]", value=1100.0, step=50.0)
     Q = st.number_input("Capacidad de carga útil en Gancho (Q) [kgf]", value=10000.0, step=500.0)
@@ -620,7 +627,15 @@ st.info(f"""
 
 # Parámetros mecánicos y estáticos de la viga
 Luz_cm, al_cm = Luz * 100.0, al / 10.0
-Pr = CARGA_TOTAL_ACTUANTE / 4.0  # Carga por rueda en puente birraíl (4 ruedas totales)
+
+if es_birrail:
+    num_vigas_puente = 2
+    Pr = CARGA_TOTAL_ACTUANTE / 4.0  # Carga por rueda sobre una viga cajón (4 ruedas totales)
+    st.info(f"ℹ️ **Configuración Birraíl (Doble Viga):** La carga se reparte entre 2 vigas. Carga de cálculo por rueda: **$P_r = {Pr:.1f}$ kgf**.")
+else:
+    num_vigas_puente = 1
+    Pr = CARGA_TOTAL_ACTUANTE / 2.0  # Carga por tándem de ruedas sobre la viga única suspendida
+    st.info(f"ℹ️ **Configuración Monoviga (Viga Simple):** El 100% de la carga gravita sobre una única viga. Carga de cálculo por apoyo de eje: **$P_r = {Pr:.1f}$ kgf**.")
 
 # Momento flector vertical máximo (Teorema de Barré simplificado)
 Mpmax = Pr * ((Luz_cm - al_cm/2.0)**2) / (2.0 * Luz_cm)
