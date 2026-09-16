@@ -317,6 +317,22 @@ with st.sidebar.expander("🌉 Geometría del Puente y Cargas", expanded=True):
     f_adm = (Luz * 100.0) / divisor_flecha
 
 with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
+
+    v_traslacion = st.number_input(
+        "Velocidad de traslación (vt) [m/min]:", 
+        value=25.0, min_value=5.0, max_value=80.0, step=2.5,
+        help="Velocidad longitudinal del puente sobre las carrileras (típico en naves: 20 a 40 m/min con comando o cabina)."
+    )
+    t_arranque_user = st.number_input(
+        "Tiempo de aceleración / rampa (ta) [s]:", 
+        value=3.0, min_value=1.5, max_value=6.0, step=0.5,
+        help="Tiempo de rampa de arranque con variador de frecuencia para evitar balanceo excesivo de la carga."
+    )
+    n_mot_traslacion = st.selectbox(
+        "Velocidad de sincronismo motor traslación [rpm]:", 
+        [1500, 1000, 750], index=0,
+        help="Normalmente 4 polos (1500 rpm) o 6 polos (1000 rpm) a 50 Hz."
+    )    
     num_ramales = st.slider("Número de ramales del polipasto", min_value=2, max_value=10, value=4, step=1)
     grupo_din = st.selectbox("Grupo DIN 4130", ['I', 'II', 'III', 'IV', 'V'], index=2)
     ve_m_min = st.number_input("Velocidad de elevación [m/min]", value=8.0, step=0.5)
@@ -833,23 +849,21 @@ from modulo_rueda import evaluar_ruedas_traslacion, obtener_catalogo_rieles, obt
 st.markdown("---")
 st.header("⚙️ Verificación de Ruedas de Traslación del Puente (DIN 15070)")
 
-col_r1, col_r2, col_r3 = st.columns(3)
+col_r1, col_r2 = st.columns(2)
 with col_r1:
-    v_traslacion = st.number_input("Velocidad de traslación del puente [m/min]:", value=25.0, step=2.0)
-with col_r2:
     riel_adoptado = st.selectbox("Perfil de Riel en Carrilera:", list(obtener_catalogo_rieles().keys()), index=1)
-with col_r3:
+with col_r2:
     mat_rueda = st.selectbox("Material de Ruedas:", list(obtener_materiales_rueda().keys()), index=1)
 
 df_ruedas, b_util_mm = evaluar_ruedas_traslacion(
     P_rueda_kg=res_testera['P_rueda_max_kg'],
-    v_traslacion_m_min=v_traslacion,
+    v_traslacion_m_min=v_traslacion,  # Viene de la barra lateral
     grupo_din=grupo_din,
     riel_sel_str=riel_adoptado,
     material_sel_str=mat_rueda
 )
 
-st.info(f"🛤️ **Riel Seleccionado:** `{riel_adoptado}` | Ancho útil de apoyo: **$b_u = {b_util_mm}$ mm** | Carga actuante: **$P_{{rueda}} = {res_testera['P_rueda_max_ton']}$ t**")
+st.info(f"🛤️ **Parámetros de Servicio:** Velocidad = **{v_traslacion} m/min** | Riel: `{riel_adoptado}` ($b_u = {b_util_mm}$ mm) | Carga actuante: **$P_{{rueda}} = {res_testera['P_rueda_max_ton']}$ t**")
 
 st.dataframe(df_ruedas, use_container_width=True)
 
@@ -857,9 +871,10 @@ ruedas_validas = df_ruedas[df_ruedas["Estado"] == "🟢 Verifica"]
 if not ruedas_validas.empty:
     d_rueda_optima = int(ruedas_validas.iloc[0]["Diametro_mm"])
     rpm_optima = float(ruedas_validas.iloc[0]["rpm_rueda"])
-    st.success(f"✅ **Diámetro Normalizado Mínimo Recomendado:** **Ø {d_rueda_optima} mm** (Gira a **{rpm_optima} rpm** a plena marcha).")
+    st.success(f"✅ **Diámetro Normalizado Mínimo Recomendado:** **Ø {d_rueda_optima} mm** (Gira a **{rpm_optima:.1f} rpm** a {v_traslacion} m/min).")
 else:
-    st.error("❌ Ningún diámetro estándar verifica para el ancho de riel o material seleccionado. Incremente el ancho de riel o seleccione un material con mayor dureza superficial.")
+    d_rueda_optima = 400
+    st.error("❌ Ningún diámetro estándar verifica para el ancho de riel o material seleccionado.")
 
 # ==============================================================================
 # 9. MOTORREDUCTORES DE TRASLACIÓN DEL PUENTE (Bilateral: 1 por Testera)
@@ -869,18 +884,10 @@ from modulo_traslacion import calcular_motorreductor_traslacion
 st.markdown("---")
 st.header("⚡ Accionamiento de Traslación del Puente (Grupo Testeras)")
 
-col_tr1, col_tr2, col_tr3 = st.columns(3)
-with col_tr1:
-    t_arranque_user = st.number_input("Tiempo de arranque / rampa (t_a) [s]:", value=3.0, min_value=1.5, max_value=6.0, step=0.5)
-with col_tr2:
-    n_mot_traslacion = st.selectbox("Velocidad sincronismo motor [rpm]:", [1500, 1000, 750], index=0)
-with col_tr3:
-    diametro_para_traslacion = d_rueda_optima if 'd_rueda_optima' in locals() else 315
-
 res_trasl = calcular_motorreductor_traslacion(
     peso_total_puente_ton=res_testera['Peso_total_puente_cargado_ton'],
     v_traslacion_m_min=v_traslacion,
-    diametro_rueda_mm=diametro_para_traslacion,
+    diametro_rueda_mm=d_rueda_optima,
     tiempo_arranque_s=t_arranque_user,
     n_motor_rpm=float(n_mot_traslacion)
 )
@@ -889,16 +896,15 @@ col_tm1, col_tm2, col_tm3, col_tm4 = st.columns(4)
 col_tm1.metric("Potencia por Motor", f"{res_trasl['pot_motor_iec_kw']} kW", help=f"Régimen: {res_trasl['P_regimen_kw']} kW | Arranque: {res_trasl['P_arranque_kw']} kW")
 col_tm2.metric("Relación Reductor (i)", f"{res_trasl['i_requerido']}:1")
 col_tm3.metric("Velocidad de Rueda", f"{res_trasl['n_rueda_rpm']} rpm")
-col_tm4.metric("Torque de Rueda", f"{res_trasl['torque_rueda_Nm']} N·m")
+col_tm4.metric("Torque en Eje Rueda", f"{res_trasl['torque_rueda_Nm']} N·m")
 
 st.info(f"""
-⚙️ **Configuración Cinemática del Accionamiento Bilateral:**
-* **Esquema:** 2 Motorreductores ortogonales o de ejes paralelos montados directamente al eje hueco de la rueda motriz (1 en cada testera).
-* **Fuerza resistente por rodamiento ($W_r$):** {res_trasl['W_rodamiento_kgf']} kgf | **Fuerza de inercia al arranque ($W_a$):** {res_trasl['W_aceleracion_kgf']} kgf.
-* **Comprobación de Adherencia (Patinamiento):** Coeficiente de tracción requerido $\mu = {res_trasl['mu_calc']}$. 
-  {'🟢 Verificado: Sin riesgo de patinamiento en vacío.' if res_trasl['verifica_adherencia'] else '⚠️ Atención: Riesgo de deslizamiento de rueda motriz al arrancar en vacío.'}
+⚙️ **Detalles del Accionamiento a {v_traslacion} m/min (Rampa de {t_arranque_user} s):**
+* **Esquema:** 2 Motorreductores independientes (1 por testera montado a eje hueco).
+* **Fuerza resistente rodamiento ($W_r$):** {res_trasl['W_rodamiento_kgf']} kgf | **Fuerza de inercia ($W_a$):** {res_trasl['W_aceleracion_kgf']} kgf.
+* **Comprobación anti-patinamiento ($\mu$):** Coeficiente de tracción requerido = **{res_trasl['mu_calc']}** 
+  {'🟢 Cumple: No desliza al arrancar en vacío.' if res_trasl['verifica_adherencia'] else '⚠️ Peligro de patinamiento: Aumentar rampa o diámetro de rueda.'}
 """)
-
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
 # ------------------------------------------------------------------------------
