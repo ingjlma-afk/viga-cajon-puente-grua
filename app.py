@@ -792,7 +792,7 @@ st.info(
     f"{'🟢 Cumple relación anti-acuñamiento.' if batalla_at_user >= res_testera['at_min_norma_mm'] else '⚠️ Batalla corta, riesgo de acuñamiento.'}"
 )
 
-cst.info(f"""
+st.info(f"""
 ⚖️ **Balance Estático entre Apoyos del Puente:**
 * **Peso Total Gravitante (Grúa + Carro + Gancho):** **{res_testera['Peso_total_puente_cargado_ton']} t**
 * **Testera A (Lado del carro en acercamiento $e={e_acercamiento_user:.0f}$ mm):** Reacción = **{res_testera['R_max_testera_ton']} t** ($P_{{rueda}} = {res_testera['P_rueda_max_ton']}$ t)
