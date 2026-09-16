@@ -7,44 +7,51 @@ import plotly.graph_objects as go
 import ezdxf
 from ezdxf import recover
 
-# Importación de módulos propios
+# ------------------------------------------------------------------------------
+# IMPORTACIÓN DE MÓDULOS PROPIOS
+# ------------------------------------------------------------------------------
 from modulo_cables import verificar_cable_elevacion, obtener_catalogo_cables_completo
+from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
+from modulo_motor import calcular_motor_reductor
+from modulo_reductor import evaluar_reductores_elevacion
+from modulo_freno import calcular_freno_carga
+from modulo_esquema import generar_diagrama_cinematico
 
-# Alias para compatibilidad si alguna otra función vieja los llama
+# Alias de compatibilidad retroactiva
 verificar_tabla_cables = verificar_cable_elevacion
 obtener_tabla_cables_completa = obtener_catalogo_cables_completo
-from modulo_tambor import calcular_dimensiones_tambor, estimar_peso_pasteca
 
-# Configuración de página con título e icono
+# ------------------------------------------------------------------------------
+# CONFIGURACIÓN DE PÁGINA Y ESTILO CONSOLA DE CONTROL TÉCNICA (UTN FRRE)
+# ------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="Calculadora Viga - Puente Grúa | UTN FRRE",
+    page_title="Calculadora Integral Puente Grúa | UTN FRRE",
     page_icon="🏗️",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Inyección de CSS para personalizar el diseño (Modo Consola de Control + UTN)
 st.markdown("""
 <style>
-   /* Fondo estilo consola técnica con marca de agua discreta en la esquina inferior */
+    /* Fondo principal de consola con marca de agua discreta del escudo UTN */
     .stApp {
         background-color: #0b111e;
         background-image: radial-gradient(rgba(14, 165, 233, 0.12) 1px, transparent 0),
                           url("https://upload.wikimedia.org/wikipedia/commons/6/67/UTN_logo.jpg");
-        background-size: 24px 24px, 200px auto;
+        background-size: 24px 24px, 180px auto;
         background-position: 0 0, calc(100% - 25px) calc(100% - 25px);
         background-repeat: repeat, no-repeat;
         background-attachment: fixed;
         color: #e2e8f0;
     }
 
-    /* Barra lateral estilo cabina técnica */
+    /* Barra lateral técnica */
     section[data-testid="stSidebar"] {
         background-color: #070d18 !important;
         border-right: 1px solid #1e293b;
     }
 
-    /* Cabecera institucional UTN adaptada a consola */
+    /* Cabecera institucional */
     .header-utn {
         background: linear-gradient(135deg, #070d18 0%, #111c30 100%);
         border: 1px solid #1e3a5f;
@@ -56,7 +63,7 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     }
 
-    /* Títulos y encabezados con tipografía técnica */
+    /* Títulos técnicos */
     h1, h2, h3, h4 {
         color: #38bdf8 !important;
         font-family: 'Consolas', 'Courier New', monospace;
@@ -82,11 +89,11 @@ st.markdown("""
     div[data-testid="stMetricValue"] {
         color: #f8fafc !important;
         font-family: 'Consolas', monospace;
-        font-size: 24px !important;
+        font-size: 22px !important;
         font-weight: bold;
     }
 
-    /* Paneles de avisos y alertas */
+    /* Alertas técnicas */
     div[data-testid="stAlert"] {
         background-color: #0f233a !important;
         border: 1px solid #0284c7 !important;
@@ -94,14 +101,14 @@ st.markdown("""
         border-radius: 6px;
     }
 
-    /* Tablas en modo oscuro */
+    /* Tablas de catálogo */
     div[data-testid="stDataFrame"] {
         border: 1px solid #1e3a8a;
         border-radius: 6px;
         background-color: #0c1524;
     }
 
-    /* Pie de página adaptado */
+    /* Pie de página institucional */
     .footer-utn {
         text-align: center;
         padding: 15px;
@@ -116,27 +123,26 @@ st.markdown("""
 # Encabezado visual en pantalla
 st.markdown("""
     <div class="header-utn">
-        <h1 style="margin:0; font-size: 28px;">🏗️ Plataforma de Cálculo e Ingeniería de Puentes Grúa</h1>
+        <h1 style="margin:0; font-size: 26px;">🏗️ Plataforma de Cálculo e Ingeniería de Puentes Grúa</h1>
         <p style="margin:5px 0 0 0; opacity: 0.9;">
-            Desarrollado por Electromecánicos — <strong>UTN Facultad Regional Resistencia</strong>
+            Dimensionamiento Integral Mecánico y Estructural (DIN 120 / DIN 4130 / DIN 15020 / FEM 9.511) — <strong>UTN Facultad Regional Resistencia</strong>
         </p>
     </div>
 """, unsafe_allow_html=True)
 
-st.markdown("Cálculo estructural y mecánico (DIN 120 / DIN 4130 / DIN 655) con soporte para geometría arbitraria vía DXF.")
-
-# --- SELECCIÓN DE MODO DE GEOMETRÍA ---
-st.sidebar.header("📐 Modo de Geometría")
+# ------------------------------------------------------------------------------
+# PARÁMETROS EN BARRA LATERAL (SIDEBAR)
+# ------------------------------------------------------------------------------
+st.sidebar.header("📐 Modo de Geometría de Viga")
 modo_geometria = st.sidebar.radio(
-    "Seleccione el origen de la sección transversal:",
+    "Origen de la sección transversal:",
     ["Paramétrica (Viga Cajón estándar)", "Importar desde Archivo DXF"]
 )
 
-# Variables geométricas iniciales
 Jx, Jy, Wx, Wy, Pp = 0.0, 0.0, 0.0, 0.0, 0.0
-fig = go.Figure()
+fig_geom = go.Figure()
 
-# --- CÁLCULO DE PROPIEDADES GEOMÉTRICAS DXF CON ROTACIÓN Y LECTURA BINARIA ---
+# Función lectora de DXF con rotación y cálculo inercial
 def procesar_dxf(uploaded_file, angulo_deg=0):
     with tempfile.NamedTemporaryFile(delete=False, suffix='.dxf') as tmp:
         tmp.write(uploaded_file.getvalue())
@@ -152,8 +158,6 @@ def procesar_dxf(uploaded_file, angulo_deg=0):
             
     msp = doc.modelspace()
     poligonos = []
-    
-    # Matriz de rotación en radianes
     rad = math.radians(angulo_deg)
     cos_a, sin_a = math.cos(rad), math.sin(rad)
     
@@ -161,7 +165,6 @@ def procesar_dxf(uploaded_file, angulo_deg=0):
         if entity.dxftype() in ('LWPOLYLINE', 'POLYLINE'):
             pts_orig = [(p[0], p[1]) for p in entity.get_points()]
             if len(pts_orig) >= 3:
-                # Rotación de puntos sobre el centroide (0,0) de CAD
                 points = [(x * cos_a - y * sin_a, x * sin_a + y * cos_a) for x, y in pts_orig]
                 n = len(points)
                 A_i, cx_i, cy_i = 0.0, 0.0, 0.0
@@ -239,7 +242,6 @@ def procesar_dxf(uploaded_file, angulo_deg=0):
         'Pp': Pp_calc, 'poligonos': poligonos, 'Cx': Cx_g, 'Cy': Cy_g
     }
 
-# --- ENTRADA DE DATOS Y SELECCIÓN GEOMÉTRICA ---
 if modo_geometria == "Paramétrica (Viga Cajón estándar)":
     with st.sidebar.expander("📐 Geometría Cajón", expanded=True):
         b = st.number_input("Ancho viga (b) [mm]", value=500.0, step=10.0)
@@ -258,15 +260,15 @@ if modo_geometria == "Paramétrica (Viga Cajón estándar)":
     Wy = Jy / (b_cm/2)
     Pp = (2 * (b/1000) * (esp_patin/1000) + 2 * (h/1000) * (esp_alma/1000)) * 7860.0
 
-    fig.add_shape(type="rect", x0=-b/2, y0=h/2, x1=b/2, y1=h/2 + esp_patin, fillcolor="SteelBlue", line=dict(color="Black"))
-    fig.add_shape(type="rect", x0=-b/2, y0=-h/2 - esp_patin, x1=b/2, y1=-h/2, fillcolor="SteelBlue", line=dict(color="Black"))
-    fig.add_shape(type="rect", x0=-b/2 + dl, y0=-h/2, x1=-b/2 + dl + esp_alma, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
-    fig.add_shape(type="rect", x0=b/2 - dl - esp_alma, y0=-h/2, x1=b/2 - dl, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
-    fig.update_layout(xaxis=dict(range=[-b*0.7, b*0.7]), yaxis=dict(range=[-h*0.7, h*0.7]))
+    fig_geom.add_shape(type="rect", x0=-b/2, y0=h/2, x1=b/2, y1=h/2 + esp_patin, fillcolor="SteelBlue", line=dict(color="Black"))
+    fig_geom.add_shape(type="rect", x0=-b/2, y0=-h/2 - esp_patin, x1=b/2, y1=-h/2, fillcolor="SteelBlue", line=dict(color="Black"))
+    fig_geom.add_shape(type="rect", x0=-b/2 + dl, y0=-h/2, x1=-b/2 + dl + esp_alma, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
+    fig_geom.add_shape(type="rect", x0=b/2 - dl - esp_alma, y0=-h/2, x1=b/2 - dl, y1=h/2, fillcolor="LightSteelBlue", line=dict(color="Black"))
+    fig_geom.update_layout(xaxis=dict(range=[-b*0.7, b*0.7]), yaxis=dict(range=[-h*0.7, h*0.7]))
 
 else:
     st.sidebar.subheader("📁 Cargar Archivo DXF")
-    uploaded_dxf = st.sidebar.file_uploader("Seleccione el archivo .dxf dibujado en mm", type=["dxf"])
+    uploaded_dxf = st.sidebar.file_uploader("Seleccione el archivo .dxf en mm", type=["dxf"])
     rotacion_deg = st.sidebar.selectbox("🔄 Rotar Sección Transversal", [0, 90, 180, 270], index=1)
     
     if uploaded_dxf is not None:
@@ -286,37 +288,26 @@ else:
                     ys = [p[1] - res_dxf['Cy'] for p in pts] + [pts[0][1] - res_dxf['Cy']]
                     fill_type = "toself" if idx == 0 else "none"
                     color_line = "Black" if idx == 0 else "Red"
-                    fig.add_trace(go.Scatter(
-                        x=xs, y=ys, 
-                        fill=fill_type, 
-                        fillcolor="LightSteelBlue", 
-                        line=dict(color=color_line), 
-                        mode="lines", 
-                        name=f"Polígono {idx+1}"
+                    fig_geom.add_trace(go.Scatter(
+                        x=xs, y=ys, fill=fill_type, fillcolor="LightSteelBlue",
+                        line=dict(color=color_line), mode="lines", name=f"Polígono {idx+1}"
                     ))
                 
-                # FORZAR ESCALA 1:1 EN AMBOS EJES PARA VER EL GIRO REAL
-                fig.update_layout(
+                fig_geom.update_layout(
                     showlegend=False,
                     yaxis=dict(scaleanchor="x", scaleratio=1),
                     xaxis=dict(constrain="domain")
                 )
-            else:
-                st.sidebar.error("No se encontraron polilíneas cerradas en el DXF.")
         except Exception as e:
             st.sidebar.error(f"Error al procesar DXF: {e}")
-    else:
-        st.info("👈 Cargue el archivo .dxf desde la barra lateral para procesar la geometría.")
 
-# --- PARÁMETROS DE CARGA Y MECANISMOS EN BARRA LATERAL ---
 with st.sidebar.expander("🌉 Geometría del Puente y Cargas", expanded=True):
     Luz = st.number_input("Luz del puente (L) [m]", value=20.0, step=1.0)
     al = st.number_input("Distancia entre ruedas del carro (al) [mm]", value=1100.0, step=50.0)
-    Q = st.number_input("Capacidad de carga útil en Gancho (Q) [kgf]", value=18000.0, step=500.0)
+    Q = st.number_input("Capacidad de carga útil en Gancho (Q) [kgf]", value=10000.0, step=500.0)
     
-    Luz_cm_temp = Luz * 100.0
     divisor_flecha = st.selectbox("Divisor para Flecha Admisible (L / N)", options=list(range(400, 1201, 100)), index=4)
-    f_adm = Luz_cm_temp / divisor_flecha
+    f_adm = (Luz * 100.0) / divisor_flecha
 
 with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
     num_ramales = st.slider("Número de ramales del polipasto", min_value=2, max_value=10, value=4, step=1)
@@ -325,10 +316,10 @@ with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
     he = st.number_input("Altura de elevación [m]", value=8.0, step=1.0)
     
     st.markdown("---")
-    st.markdown("**📉 Rendimientos Mecánicos (DIN 15020)**")
-    eta_poleas = st.number_input("Rendimiento Aparejo/Poleas (η_p)", value=0.97, min_value=0.80, max_value=0.99, step=0.01, help="Rodamientos: 0.97-0.98 | Bujes: 0.93-0.95")
+    st.markdown("**📉 Rendimientos Mecánicos**")
+    eta_poleas = st.number_input("Rendimiento Aparejo/Poleas (η_p)", value=0.97, min_value=0.80, max_value=0.99, step=0.01)
     eta_tambor = st.number_input("Rendimiento Tambor (η_t)", value=0.98, min_value=0.90, max_value=1.00, step=0.01)
-    eta_reductor = st.number_input("Rendimiento Reductor (η_r)", value=0.93, min_value=0.50, max_value=0.98, step=0.01, help="Engranajes Cilíndricos/Helicoidales: 0.92-0.96 | Corona y Sinfín: 0.60-0.75")
+    eta_reductor = st.number_input("Rendimiento Reductor (η_r)", value=0.93, min_value=0.50, max_value=0.98, step=0.01)
 
     phi = st.number_input("Coeficiente de choque (ϕ)", value=1.1, step=0.05)
     psi = st.number_input("Coeficiente de mayoración (ψ)", value=1.6, step=0.05)
@@ -337,19 +328,16 @@ with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
     E = st.number_input("Módulo elástico E [kgf/cm²]", value=2100000.0)
 
 # ==============================================================================
-# CÁLCULOS MECÁNICOS Y CARGA FINAL
+# 1. SELECCIÓN TÉCNICA DEL CABLE (DIN 655 / VEROPRO)
 # ==============================================================================
 peso_pasteca = estimar_peso_pasteca(Q, num_ramales)
 
-S_max, F_req, tabla_cables = verificar_tabla_cables(
+S_max, F_req, tabla_cables = verificar_cable_elevacion(
     Q_kg=Q,
     P_ap_kg=peso_pasteca,
     num_ramales=num_ramales
 )
 
-# ------------------------------------------------------------------------------
-# INTERFAZ VISUAL: SELECCIÓN INTERACTIVA Y GEOMETRÍA
-# ------------------------------------------------------------------------------
 st.markdown("---")
 st.subheader("🧵 Selección del Cable y Configuración del Polipasto")
 
@@ -359,7 +347,6 @@ with col_p1:
 with col_p2:
     vueltas_reserva = st.number_input("Vueltas de seguridad en tambor por lado:", min_value=2, max_value=5, value=3)
 
-# Filtro de catálogo
 opcion_filtro = st.radio(
     "Filtrar catálogo de cables:",
     ["🟢 Ver solo Óptimos / Recomendados", "🟡 Ver Óptimos y Sobredimensionados", "📋 Ver Catálogo Completo"],
@@ -381,7 +368,6 @@ st.dataframe(
     use_container_width=True
 )
 
-# EL ALUMNO SELECCIONA EL CABLE DEFINITIVO DE LA LISTA
 opc_cables = [
     f"{row['Norma_Marca']} - {row['Composicion']} | Ø{row['Diametro_mm']} mm ({row['Peso_kg_m']} kg/m)" 
     for _, row in tabla_mostrar.iterrows()
@@ -397,33 +383,16 @@ else:
     d_cable_sel = 14.0
     peso_unitario_sel = 0.88
 
-# ------------------------------------------------------------------------------
-# ADOPCIÓN DE COEFICIENTES h1, h2, h3 (DECISIÓN DEL ALUMNO)
-# ------------------------------------------------------------------------------
+# ==============================================================================
+# 2. ADOPCIÓN DE COEFICIENTES h1, h2, h3 Y TAMBOR (DIN 15020)
+# ==============================================================================
 st.markdown("---")
 st.subheader("📐 Adopción de Coeficientes para Tambor y Poleas (DIN 15020)")
 
-# Detectar el grupo desde la barra lateral (soporta grupo_din o grupo_fem)
-if 'grupo_din' in locals() or 'grupo_din' in globals():
-    grupo_sel = grupo_din
-elif 'grupo_fem' in locals() or 'grupo_fem' in globals():
-    grupo_sel = grupo_fem
-else:
-    grupo_sel = "2m (M5)"
-
-# Mapeo de equivalencias DIN 4130 / FEM 9.511
 MAPA_GRUPOS = {
-    "I": "1Am (M4)",
-    "II": "2m (M5)",
-    "III": "3m (M6)",
-    "IV": "4m (M7)",
-    "V": "5m (M8)",
-    "1Bm (M3)": "1Bm (M3)", "1Am (M4)": "1Am (M4)", 
-    "2m (M5)": "2m (M5)", "3m (M6)": "3m (M6)", 
-    "4m (M7)": "4m (M7)", "5m (M8)": "5m (M8)"
+    "I": "1Am (M4)", "II": "2m (M5)", "III": "3m (M6)", "IV": "4m (M7)", "V": "5m (M8)"
 }
-
-grupo_fem = MAPA_GRUPOS.get(str(grupo_sel), "2m (M5)")
+grupo_fem = MAPA_GRUPOS.get(str(grupo_din), "2m (M5)")
 
 h_min_dict = {
     "1Bm (M3)": {"h1": 14.0, "h2": 16.0, "h3": 11.2},
@@ -433,7 +402,6 @@ h_min_dict = {
     "4m (M7)":  {"h1": 22.4, "h2": 25.0, "h3": 18.0},
     "5m (M8)":  {"h1": 25.0, "h2": 28.0, "h3": 20.0}
 }
-
 h_actual = h_min_dict.get(grupo_fem, {"h1": 18.0, "h2": 20.0, "h3": 14.0})
 
 st.warning(f"**Mínimos normativos FEM ({grupo_fem}):** "
@@ -449,10 +417,8 @@ with col_h2:
 with col_h3:
     h3_user = st.number_input("Adoptar $h_3$ (Polea Reenvío):", value=float(h_actual['h3']), step=0.5)
 
-# Detectar la marca del cable para aplicar el factor c_flex
 marca_cable_sel = str(cable_sel["Norma_Marca"]) if 'cable_sel' in locals() else "DIN"
 
-# CÁLCULO DE GEOMETRÍA CON LOS VALORES ADOPTADOS Y MARCA DE CABLE
 res_tambor = calcular_dimensiones_tambor(
     d_cable_mm=d_cable_sel,
     H_elevacion_m=he,
@@ -467,109 +433,27 @@ res_tambor = calcular_dimensiones_tambor(
     marca_cable=marca_cable_sel
 )
 
-# VERIFICACIÓN TÉCNICA
 if not (res_tambor['h1_valido'] and res_tambor['h2_valido'] and res_tambor['h3_valido']):
-    st.error("❌ **ERROR NORMATIVO:** Uno o más coeficientes adoptados están por debajo del mínimo exigido por DIN 15020 / FEM.")
+    st.error("❌ Uno o más coeficientes adoptados están por debajo del mínimo exigido por norma.")
 else:
-    st.success("✅ **DISEÑO VERIFICADO:** Los coeficientes adoptados cumplen con las exigencias normativas.")
+    st.success("✅ Coeficientes verificados conforme a DIN 15020.")
 
-# MOSTRAR RESULTADOS EN PANTALLA
-st.subheader("⚙️ Dimensiones Calculadas de Componentes")
 col_t1, col_t2, col_t3, col_t4 = st.columns(4)
 col_t1.metric("Ø Tambor ($D_t$)", f"{res_tambor['D_tambor_mm']} mm")
 col_t2.metric("Ancho Tambor ($L_t$)", f"{res_tambor['L_tambor_mm']} mm")
 col_t3.metric("Ø Poleas Pasteca ($D_p$)", f"{res_tambor['D_polea_mm']} mm")
 col_t4.metric("Ø Polea Reenvío ($D_r$)", f"{res_tambor['D_reenvio_mm']} mm")
 
-if "Gemelo" in str(tipo_polipasto):
-    st.info(f"📏 **Separación central libre en tambor ($L_{{centro}}$):** {res_tambor['L_centro_mm']} mm (Igual al Ø de polea de pasteca para evitar desvío de cable).")
-
-# BALANCE FINAL DE CARGAS CARRO
-peso_mecanismos_est = 350.0
-P_carro_real = peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + peso_mecanismos_est
-CARGA_TOTAL_ACTUANTE = Q + P_carro_real
-
-# =======================================================
-# CÁLCULO ESTRUCTURAL DE LA VIGA
-# =======================================================
-Luz_cm, al_cm = Luz * 100.0, al / 10.0
-Pr = CARGA_TOTAL_ACTUANTE / 4.0
-Mpmax = Pr * ((Luz_cm - al_cm/2)**2) / (2 * Luz_cm)
-ge = Pp + 40.0
-Mg1 = (ge * (Luz**2) / 8.0) * 100.0
-g2 = 700.0
-Mg2 = (g2 * Luz / 4.0) * 100.0
-
-sigma_v = (phi * (Mg1 + Mg2) + psi * Mpmax) / Wx if Wx > 0 else 0.0
-
-Fih = Pr / 14.0
-Mpmax_H = (Fih * ((Luz_cm - al_cm/2)**2)) / (2 * Luz_cm)
-Mg1_H = Mg1 / 14.0
-Mg2_H = Mg2 / 14.0
-
-sigma_Hv = sigma_v + (Mpmax_H + Mg1_H + Mg2_H) / Wy if Wy > 0 else 0.0
-f_real = (Pr * (Luz_cm - al_cm) * (Luz_cm**2 + (Luz_cm + al_cm)**2)) / (48 * E * Jx) if Jx > 0 else 0.0
-
-# --- INTERFAZ DE RESULTADOS ---
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    st.subheader("📊 Verificaciones Estructurales")
-    
-    verf_v = sigma_v <= sigma_adm_v if sigma_v > 0 else False
-    color_border_v = "#1e8e3e" if verf_v else "#d93025"
-    st.markdown(f"""
-    <div style="background-color: {'#e6f4ea' if verf_v else '#fce8e6'}; border: 2px solid {color_border_v}; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
-        <span style="font-size: 14px; font-weight: bold;">Tensión Flexión Vertical (σv)</span>
-        <div style="font-size: 26px; font-weight: bold; color: {color_border_v};">{sigma_v:.2f} kgf/cm²</div>
-        <div style="font-size: 14px; font-weight: bold; color: {color_border_v};">{'✅ VERIFICA' if verf_v else '❌ NO VERIFICA'}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    verf_hv = sigma_Hv <= sigma_adm_hv if sigma_Hv > 0 else False
-    color_border_hv = "#1e8e3e" if verf_hv else "#d93025"
-    st.markdown(f"""
-    <div style="background-color: {'#e6f4ea' if verf_hv else '#fce8e6'}; border: 2px solid {color_border_hv}; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
-        <span style="font-size: 14px; font-weight: bold;">Tensión Combinada V+H (σHv)</span>
-        <div style="font-size: 26px; font-weight: bold; color: {color_border_hv};">{sigma_Hv:.2f} kgf/cm²</div>
-        <div style="font-size: 14px; font-weight: bold; color: {color_border_hv};">{'✅ VERIFICA' if verf_hv else '❌ NO VERIFICA'}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("**Propiedades Geométricas Calculadas:**")
-    st.write(f"- **Jx:** {Jx:.2f} cm⁴ | **Wx:** {Wx:.2f} cm³")
-    st.write(f"- **Jy:** {Jy:.2f} cm⁴ | **Wy:** {Wy:.2f} cm³")
-    st.write(f"- **Peso propio viga:** {Pp:.2f} kgf/m")
-
-with col2:
-    st.subheader("📐 Geometría Transversal")
-    st.plotly_chart(fig, use_container_width=True)
-
-# =======================================================
-# MÓDULOS MECÁNICOS Y DESGLOSE
-# =======================================================
-st.markdown("---")
-st.header("🛞 Dimensionamiento del Tambor y Balance Acumulado de Cargas")
-
-st.success(f"""
-⚖️ **Carga Total Centralizada Solicitante de la Viga Principal:**  
-* **Carga Útil Nominal ($Q$):** {Q:.0f} kgf  
-* **Peso Propio Calculado del Carro y Mecanismos ($P_{{carro}}$):** {P_carro_real:.1f} kgf  
-  *(Pasteca/Gancho: {peso_pasteca:.0f} kgf | Cable de Acero: {res_tambor['peso_cable_kg']:.1f} kgf | Tambor Ranurado: {res_tambor['peso_tambor_kg']:.1f} kgf | Motor/Freno: 350 kgf)*  
-* ➔ **CARGA TOTAL SOLICITANTE DE VIGA ($P_{{total}}$): {CARGA_TOTAL_ACTUANTE:.1f} kgf**
-""")
-
-
-from modulo_motor import calcular_motor_reductor
-
-# =======================================================
-# MÓDULO DE MOTORIZACIÓN Y REDUCTOR
-# =======================================================
+# ==============================================================================
+# 3. MOTORIZACIÓN Y SELECCIÓN DE REDUCTOR LENTAX 820
+# ==============================================================================
 st.markdown("---")
 st.header("⚡ Selección del Grupo Motorreductor de Elevación")
 
+# Cálculo preliminar de potencia con la carga en gancho y peso preliminar de aparejo y tambor
+peso_mecanico_previo = peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg']
 res_motor = calcular_motor_reductor(
-    carga_total_kg=CARGA_TOTAL_ACTUANTE,
+    carga_total_kg=Q + peso_mecanico_previo,
     v_elev_m_min=ve_m_min,
     D_tambor_mm=res_tambor['D_tambor_mm'],
     num_ramales=num_ramales,
@@ -582,30 +466,29 @@ col_m1, col_m2, col_m3, col_m4 = st.columns(4)
 col_m1.metric("Rendimiento Global (η)", f"{res_motor['eta_global']} %")
 col_m2.metric("Potencia Absorbida", f"{res_motor['potencia_teorica_kw']} kW")
 col_m3.metric("Motor IEC Recomendado", f"{res_motor['potencia_motor_kw']} kW")
-col_m4.metric("Relación Reducción (i)", f"{res_motor['i_reductor']}:1")
+col_m4.metric("Velocidad Tambor", f"{res_motor['n_tambor_rpm']} rpm")
 
-st.info(f"""
-💡 **Análisis Cinemático:**  
-* **Potencia útil neta en gancho:** {res_motor['potencia_util_kw']} kW  
-* **Pérdidas acumuladas por rozamiento:** {res_motor['potencia_teorica_kw'] - res_motor['potencia_util_kw']:.2f} kW  
-* **Torque en el eje del tambor:** {res_motor['torque_tambor_Nm']} N·m a {res_motor['n_tambor_rpm']} rpm.
-""")
-
-# ------------------------------------------------------------------------------
-# SELECCIÓN Y EVALUACIÓN DEL REDUCTOR INDUSTRIAL (CATÁLOGO LENTAX 820)
-# ------------------------------------------------------------------------------
-from modulo_reductor import evaluar_reductores_elevacion
+# Estimación del peso propio del motor eléctrico normalizado IEC
+pot_kw = res_motor['potencia_motor_kw']
+if pot_kw <= 7.5:
+    peso_motor_iec_kg = 75.0
+elif pot_kw <= 15.0:
+    peso_motor_iec_kg = 135.0
+elif pot_kw <= 22.0:
+    peso_motor_iec_kg = 190.0
+elif pot_kw <= 30.0:
+    peso_motor_iec_kg = 245.0
+elif pot_kw <= 45.0:
+    peso_motor_iec_kg = 330.0
+else:
+    peso_motor_iec_kg = 480.0
 
 st.markdown("---")
-st.subheader("⚙️ Selección del Reductor Industrial de Ejes Paralelos (LENTAX 820)")
+st.subheader("⚙️ Selección del Reductor Industrial (Catálogo LENTAX 820)")
 
-n_motor_std = 1500.0  # Motor IEC estándar 4 polos (50 Hz)
+n_motor_std = 1500.0
 n_t = res_motor['n_tambor_rpm'] if res_motor['n_tambor_rpm'] > 0 else 15.0
 i_teorico_req = n_motor_std / n_t
-
-st.info(f"🎯 **Parámetros Requeridos:** Velocidad Tambor = **{n_t:.2f} rpm** | "
-        f"Relación Teórica Requerida: **$i_{{calc}} = {i_teorico_req:.2f}:1$** | "
-        f"Potencia Motor: **{res_motor['potencia_motor_kw']} kW**")
 
 tabla_reductores = evaluar_reductores_elevacion(
     i_requerido=i_teorico_req,
@@ -628,13 +511,7 @@ if not reductores_validos.empty:
     red_sel_str = st.selectbox("👉 Seleccionar Modelo de Reductor LENTAX:", opc_red)
     idx_r = opc_red.index(red_sel_str)
     reductor_elegido = reductores_validos.iloc[idx_r]
-
-    i_reductor_real = float(reductor_elegido["i_nominal"])
-    peso_reductor_real = float(reductor_elegido["Peso_kg"])
-    v_elev_real = (ve_m_min * (i_teorico_req / i_reductor_real))
-    st.success(f"✅ **Reductor Adoptado:** {reductor_elegido['Modelo']} | Velocidad de elevación resultante: **{v_elev_real:.2f} m/min**")
 else:
-    st.warning("⚠️ No hay modelos en el rango estrecho de ±15% de desvío. Seleccione el más próximo de la lista general:")
     opc_todas = [
         f"{r['Modelo']} (i={r['i_nominal']}:1 | Desvío={r['Desvio_i_%']}%)"
         for _, r in tabla_reductores.iterrows()
@@ -642,17 +519,17 @@ else:
     red_sel_str = st.selectbox("👉 Seleccionar Modelo Alternativo LENTAX:", opc_todas)
     idx_r = opc_todas.index(red_sel_str)
     reductor_elegido = tabla_reductores.iloc[idx_r]
-    i_reductor_real = float(reductor_elegido["i_nominal"])
-    peso_reductor_real = float(reductor_elegido["Peso_kg"])
 
-# Actualizamos la clave del diccionario para que el freno tome la relación adoptada del catálogo Lentax
+i_reductor_real = float(reductor_elegido["i_nominal"])
+peso_reductor_real = float(reductor_elegido["Peso_kg"])
 res_motor['i_reductor'] = i_reductor_real
 
-# ------------------------------------------------------------------------------
-# VERIFICACIÓN DEL FRENO DE RETENCIÓN DE CARGA (EJE MOTOR)
-# ------------------------------------------------------------------------------
-from modulo_freno import calcular_freno_carga
+v_elev_real = (ve_m_min * (i_teorico_req / i_reductor_real))
+st.success(f"✅ **Reductor Adoptado:** {reductor_elegido['Modelo']} (Peso: **{peso_reductor_real:.0f} kg**) | Velocidad real resultante: **{v_elev_real:.2f} m/min**")
 
+# ==============================================================================
+# 4. FRENO DE RETENCIÓN DE CARGA (EJE MOTOR)
+# ==============================================================================
 st.markdown("---")
 st.subheader("🛑 Freno de Seguridad y Retención de Carga (Eje Veloz)")
 
@@ -665,14 +542,10 @@ M_carga_motor, M_freno_req, kf_aplicado, tabla_frenos, url_catalogo = calcular_f
 )
 
 st.warning(
-    f"🔒 **Par Estático de Carga en Eje Motor:** {M_carga_motor} N·m | "
+    f"🔒 **Par de Carga en Eje Motor:** {M_carga_motor} N·m | "
     f"**Coeficiente $k_f$ ({grupo_fem}):** {kf_aplicado} | "
-    f"**Par Mínimo de Frenado Requerido:** **{M_freno_req} N·m**"
+    f"**Par Mínimo Requerido:** **{M_freno_req} N·m**"
 )
-
-st.markdown(f"📖 **Fuente de Datos / Catálogo Comercial de Referencia:** "
-            f"[Ver Ficha Técnica Oficial INTORQ / Kendrion BFK458]({url_catalogo})  \n"
-            f"*Otras marcas comerciales equivalentes:* **SEW-Eurodrive (BMG/BM)**, **Warner Electric (ERD)**, **Binder / Kendrion**.")
 
 st.dataframe(
     tabla_frenos[["Estado_Freno", "Marca_Serie", "Modelo", "Par_Nominal_Nm", "k_f_Real", "Peso_kg", "Potencia_W"]],
@@ -680,20 +553,23 @@ st.dataframe(
 )
 
 opc_frenos = [
-    f"{row['Marca_Serie']} ({row['Modelo']}) | Par: {row['Par_Nominal_Nm']} N·m ($k_f = {row['k_f_Real']}$)"
+    f"{row['Marca_Serie']} ({row['Modelo']}) | Par: {row['Par_Nominal_Nm']} N·m | Peso: {row['Peso_kg']} kg"
     for _, row in tabla_frenos[~tabla_frenos["Estado_Freno"].str.contains("Insuficiente")].iterrows()
 ]
 
 if len(opc_frenos) > 0:
-    freno_elegido_str = st.selectbox("👉 Seleccione el Freno de Retención comercial a instalar:", opc_frenos)
+    freno_elegido_str = st.selectbox("👉 Seleccione el Freno comercial a instalar:", opc_frenos)
     idx_fr = opc_frenos.index(freno_elegido_str)
     freno_sel = tabla_frenos[~tabla_frenos["Estado_Freno"].str.contains("Insuficiente")].iloc[idx_fr]
     peso_freno_real = float(freno_sel["Peso_kg"])
 else:
-    peso_freno_real = 20.0
+    peso_freno_real = 25.0
 
-from modulo_esquema import generar_diagrama_cinematico
+st.success(f"✅ **Freno Seleccionado:** {freno_sel['Modelo']} (Peso: **{peso_freno_real:.1f} kg**)")
 
+# ==============================================================================
+# 5. ESQUEMA KINEMÁTICO DEL CARRO
+# ==============================================================================
 st.markdown("---")
 st.subheader("🗺️ Esquema Kinemático y Distribución de Componentes en el Carro")
 
@@ -704,21 +580,107 @@ fig_croquis = generar_diagrama_cinematico(
     num_ramales=num_ramales,
     tipo_polipasto=tipo_polipasto
 )
-
 st.plotly_chart(fig_croquis, use_container_width=True)
 
-st.markdown("""
-**Leyenda y Orden del Tren de Mando (de Izquierda a Derecha):**
-1. **[1] Freno Electromagnético:** Montado en el eje veloz del motor (retención estática).
-2. **[2] Motor Eléctrico:** Accionamiento principal.
-3. **[3] Reductor de Velocidad:** Reducción de rpm e incremento de torque.
-4. **[4] Acoplamiento de Tambor:** Conexión hacia el tambor de arrollamiento.
-5. **[5] Tambor Acanalado:** Arrollamiento helicoidal de cable.
-6. **[6] Cables de Acero:** Ramales descendentes de suspensión.
-7. **[7] Pasteca / Aparejo Inferior:** Conjunto de poleas e integración del gancho de carga.
+# ==============================================================================
+# 6. BALANCE CONSOLIDADO DE CARGAS Y CÁLCULO ESTRUCTURAL DE LA VIGA CAJÓN
+# ==============================================================================
+st.markdown("---")
+st.header("🏗️ Cálculo y Verificación Estructural de la Viga Principal (DIN 120 / DIN 4132)")
+
+# Bastidor estructural estimado del carro
+peso_bastidor_carro_kg = 400.0
+
+# Sumatoria exacta de todos los pesos de catálogo y componentes
+P_carro_consolidado = (
+    peso_pasteca 
+    + res_tambor['peso_cable_kg'] 
+    + res_tambor['peso_tambor_kg'] 
+    + peso_motor_iec_kg 
+    + peso_reductor_real 
+    + peso_freno_real 
+    + peso_bastidor_carro_kg
+)
+
+CARGA_TOTAL_ACTUANTE = Q + P_carro_consolidado
+
+st.info(f"""
+⚖️ **Desglose de Cargas Reales de Componentes:**
+* **Carga Útil ($Q$):** {Q:.0f} kgf
+* **Pasteca y Gancho:** {peso_pasteca:.1f} kgf
+* **Cable de Elevación:** {res_tambor['peso_cable_kg']:.1f} kgf
+* **Tambor Ranurado:** {res_tambor['peso_tambor_kg']:.1f} kgf
+* **Motor IEC ({pot_kw} kW):** {peso_motor_iec_kg:.1f} kgf
+* **Reductor LENTAX ({reductor_elegido['Modelo']}):** {peso_reductor_real:.1f} kgf
+* **Freno INTORQ ({freno_sel['Modelo']}):** {peso_freno_real:.1f} kgf
+* **Chasis / Estructura del Carro:** {peso_bastidor_carro_kg:.1f} kgf
+* ➔ **PESO TOTAL DEL CARRO ($P_{{carro}}$): {P_carro_consolidado:.1f} kgf**
+* ➔ **CARGA TOTAL MÓVIL SOBRE EL PUENTE ($P_{{total}}$): {CARGA_TOTAL_ACTUANTE:.1f} kgf**
 """)
 
-# Pie de Página
+# Parámetros mecánicos y estáticos de la viga
+Luz_cm, al_cm = Luz * 100.0, al / 10.0
+Pr = CARGA_TOTAL_ACTUANTE / 4.0  # Carga por rueda en puente birraíl (4 ruedas totales)
+
+# Momento flector vertical máximo (Teorema de Barré simplificado)
+Mpmax = Pr * ((Luz_cm - al_cm/2.0)**2) / (2.0 * Luz_cm)
+ge = Pp + 40.0  # Peso viga + riel / pasarela
+Mg1 = (ge * (Luz**2) / 8.0) * 100.0
+g2 = 700.0  # Carga puntual central de mecanismos de traslación
+Mg2 = (g2 * Luz / 4.0) * 100.0
+
+sigma_v = (phi * (Mg1 + Mg2) + psi * Mpmax) / Wx if Wx > 0 else 0.0
+
+# Solicitación lateral horizontal (1/14 de Pr según DIN 120)
+Fih = Pr / 14.0
+Mpmax_H = (Fih * ((Luz_cm - al_cm/2.0)**2)) / (2.0 * Luz_cm)
+Mg1_H = Mg1 / 14.0
+Mg2_H = Mg2 / 14.0
+
+sigma_Hv = sigma_v + (Mpmax_H + Mg1_H + Mg2_H) / Wy if Wy > 0 else 0.0
+f_real = (Pr * (Luz_cm - al_cm) * (Luz_cm**2 + (Luz_cm + al_cm)**2)) / (48.0 * E * Jx) if Jx > 0 else 0.0
+
+# Despliegue de resultados estructurales
+col1, col2 = st.columns([1, 1])
+
+with col1:
+    st.subheader("📊 Verificaciones Estructurales")
+    
+    verf_v = sigma_v <= sigma_adm_v if sigma_v > 0 else False
+    color_border_v = "#1e8e3e" if verf_v else "#d93025"
+    st.markdown(f"""
+    <div style="background-color: {'#064e3b' if verf_v else '#7f1d1d'}; border: 2px solid {color_border_v}; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+        <span style="font-size: 14px; font-weight: bold; color: #f8fafc;">Tensión Flexión Vertical (σv)</span>
+        <div style="font-size: 24px; font-weight: bold; color: #ffffff;">{sigma_v:.2f} kgf/cm²</div>
+        <div style="font-size: 13px; font-weight: bold; color: {'#34d399' if verf_v else '#f87171'};">{'✅ VERIFICA (σv ≤ ' + str(sigma_adm_v) + ')' if verf_v else '❌ NO VERIFICA'}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    verf_hv = sigma_Hv <= sigma_adm_hv if sigma_Hv > 0 else False
+    color_border_hv = "#1e8e3e" if verf_hv else "#d93025"
+    st.markdown(f"""
+    <div style="background-color: {'#064e3b' if verf_hv else '#7f1d1d'}; border: 2px solid {color_border_hv}; border-radius: 8px; padding: 15px; margin-bottom: 10px;">
+        <span style="font-size: 14px; font-weight: bold; color: #f8fafc;">Tensión Combinada V+H (σHv)</span>
+        <div style="font-size: 24px; font-weight: bold; color: #ffffff;">{sigma_Hv:.2f} kgf/cm²</div>
+        <div style="font-size: 13px; font-weight: bold; color: {'#34d399' if verf_hv else '#f87171'};">{'✅ VERIFICA (σHv ≤ ' + str(sigma_adm_hv) + ')' if verf_hv else '❌ NO VERIFICA'}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    verf_f = f_real <= f_adm if f_real > 0 else False
+    st.metric("Flecha Elástica Calculada", f"{f_real:.2f} cm", delta=f"Límite L/{divisor_flecha}: {f_adm:.2f} cm", delta_color="normal" if verf_f else "inverse")
+
+    st.markdown("**Propiedades Geométricas de la Sección Adoptada:**")
+    st.write(f"- **Jx:** {Jx:.2f} cm⁴ | **Wx:** {Wx:.2f} cm³")
+    st.write(f"- **Jy:** {Jy:.2f} cm⁴ | **Wy:** {Wy:.2f} cm³")
+    st.write(f"- **Peso lineal viga:** {Pp:.2f} kgf/m")
+
+with col2:
+    st.subheader("📐 Sección Transversal")
+    st.plotly_chart(fig_geom, use_container_width=True)
+
+# ------------------------------------------------------------------------------
+# PIE DE PÁGINA INSTITUCIONAL
+# ------------------------------------------------------------------------------
 st.markdown("""
     <div class="footer-utn">
         <strong>Universidad Tecnológica Nacional — Facultad Regional Resistencia</strong><br>
