@@ -905,6 +905,113 @@ st.info(f"""
 * **Comprobación anti-patinamiento ($\mu$):** Coeficiente de tracción requerido = **{res_trasl['mu_calc']}** 
   {'🟢 Cumple: No desliza al arrancar en vacío.' if res_trasl['verifica_adherencia'] else '⚠️ Peligro de patinamiento: Aumentar rampa o diámetro de rueda.'}
 """)
+
+# ==============================================================================
+# 10. VIGA CARRILERA DE ALMA LLENA (DIN 4132 / CIRSOC 301)
+# ==============================================================================
+from modulo_carrilera import calcular_carrilera, obtener_catalogo_carrileras_estandar, calcular_propiedades_viga_armada
+
+st.markdown("---")
+st.header("🏢 Cálculo y Verificación de la Viga Carrilera de Alma Llena (DIN 4132)")
+
+col_cr1, col_cr2, col_cr3 = st.columns(3)
+with col_cr1:
+    L_columnas = st.number_input(
+        "Luz entre apoyos / Columnas (Lc) [m]:", 
+        value=6.0, min_value=4.0, max_value=15.0, step=0.5,
+        help="Distancia entre centros de columnas o ménsulas de la nave industrial."
+    )
+with col_cr2:
+    phi_carril = st.number_input("Coeficiente de choque vertical carrilera (ϕc):", value=1.20, step=0.05)
+with col_cr3:
+    st.info(f"🛞 **Parámetros de Testera Recibidos:** Batalla $a_t = {res_testera['at_min_norma_mm']:.0f}$ mm | Carga por rueda $P_r = {res_testera['P_rueda_max_ton']}$ t")
+
+st.subheader("📐 Geometría de la Sección de Viga Carrilera")
+modo_sec_carrilera = st.radio(
+    "Tipo de perfil para la viga carrilera:",
+    ["Perfil Comercial Laminado con Refuerzo UPN", "Viga Doble T Armada Soldada (Chapas)", "Importar Sección DXF"],
+    horizontal=True
+)
+
+prop_armada_carril = None
+prop_dxf_carril = None
+perfil_com_sel = "HEB 400 + UPN 300"
+
+if modo_sec_carrilera == "Perfil Comercial Laminado con Refuerzo UPN":
+    df_cat_carril = obtener_catalogo_carrileras_estandar()
+    perfil_com_sel = st.selectbox(
+        "Seleccionar perfil comercial normalizado:",
+        df_cat_carril["Nombre"].tolist(),
+        index=2
+    )
+    st.dataframe(df_cat_carril, use_container_width=True)
+
+elif modo_sec_carrilera == "Viga Doble T Armada Soldada (Chapas)":
+    col_ar1, col_ar2, col_ar3, col_ar4 = st.columns(4)
+    with col_ar1:
+        hw_in = st.number_input("Altura alma (hw) [mm]:", value=500.0, step=20.0)
+    with col_ar2:
+        tw_in = st.number_input("Espesor alma (tw) [mm]:", value=10.0, step=1.0)
+    with col_ar3:
+        bf_in = st.number_input("Ancho de alas (bf) [mm]:", value=300.0, step=10.0)
+    with col_ar4:
+        tf_in = st.number_input("Espesor de alas (tf) [mm]:", value=16.0, step=1.0)
+        
+    prop_armada_carril = calcular_propiedades_viga_armada(hw_in, tw_in, bf_in, tf_in)
+    st.info(f"📊 **Propiedades Sección Soldada:** $I_x = {prop_armada_carril['Ix_cm4']:.0f}$ cm⁴ | $W_x = {prop_armada_carril['Wx_cm3']:.0f}$ cm³ | $W_{{y,sup}} = {prop_armada_carril['Wy_sup_cm3']:.0f}$ cm³ | Peso = {prop_armada_carril['Peso_kg_m']:.1f} kg/m")
+
+else:
+    col_dxf_c1, col_dxf_c2 = st.columns([2, 1])
+    with col_dxf_c1:
+        up_dxf_carril = st.file_uploader("Subir DXF de viga carrilera (en mm):", type=["dxf"], key="dxf_carril")
+    with col_dxf_c2:
+        rot_dxf_c = st.selectbox("🔄 Rotar Sección Carrilera", [0, 90, 180, 270], index=0, key="rot_carril")
+        
+    if up_dxf_carril is not None:
+        try:
+            prop_dxf_carril = procesar_dxf(up_dxf_carril, angulo_deg=rot_dxf_c)
+            if prop_dxf_carril:
+                st.success(f"✅ DXF Carrilera procesado: Wx = {prop_dxf_carril['Wx']:.1f} cm³ | Peso = {prop_dxf_carril['Pp']:.1f} kg/m")
+        except Exception as e:
+            st.error(f"Error DXF: {e}")
+
+res_carril = calcular_carrilera(
+    Luz_columnas_m=L_columnas,
+    batalla_testera_at_mm=batalla_at_user,
+    P_rueda_max_kg=res_testera['P_rueda_max_kg'],
+    modo_seccion=modo_sec_carrilera,
+    perfil_comercial_str=perfil_com_sel,
+    prop_armada=prop_armada_carril,
+    prop_dxf=prop_dxf_carril,
+    phi_carrilera=phi_carril,
+    sigma_adm_kgf_cm2=sigma_adm_v,
+    E_kgf_cm2=E
+)
+
+col_cv1, col_cv2, col_cv3, col_cv4 = st.columns(4)
+col_cv1.metric("Momento Vertical (Mv)", f"{res_carril['M_v_kNm']} kN·m")
+col_cv2.metric("Momento Lateral (Mh)", f"{res_carril['M_h_kNm']} kN·m")
+col_cv3.metric(
+    "Tensión Combinada V+H", 
+    f"{res_carril['sigma_comb_kgf_cm2']:.1f} kgf/cm²",
+    delta="Verifica" if res_carril['verifica_tension'] else "No verifica",
+    delta_color="normal" if res_carril['verifica_tension'] else "inverse"
+)
+col_cv4.metric(
+    "Flecha Vertical (fv)", 
+    f"{res_carril['f_v_calc_mm']} mm",
+    delta=f"Límite {res_carril['f_adm_v_mm']} mm",
+    delta_color="normal" if res_carril['verifica_flecha_v'] else "inverse"
+)
+
+st.info(f"""
+📋 **Resumen de Verificaciones de la Viga Carrilera (Luz entre columnas = {L_columnas} m):**
+* **Perfil en servicio:** `{res_carril['nombre_seccion']}` ($I_x = {res_carril['Ix_cm4']}$ cm⁴, $W_x = {res_carril['Wx_cm3']}$ cm³).
+* **Tensión en ala superior:** $\sigma_v = {res_carril['sigma_v_kgf_cm2']}$ kgf/cm² + $\sigma_h = {res_carril['sigma_h_kgf_cm2']}$ kgf/cm² $\Rightarrow$ $\sigma_{{comb}} = {res_carril['sigma_comb_kgf_cm2']}$ kgf/cm² (Adm: {sigma_adm_v:.0f} kgf/cm²).
+* **Flecha vertical elástica:** $f_v = {res_carril['f_v_calc_mm']}$ mm $\le$ {res_carril['f_adm_v_mm']} mm ($L_c / 600$) $\longrightarrow$ {'🟢 Cumple flecha vertical' if res_carril['verifica_flecha_v'] else '🔴 Excede límite vertical'}.
+* **Flecha horizontal elástica:** $f_h = {res_carril['f_h_calc_mm']}$ mm $\le$ {res_carril['f_adm_h_mm']} mm ($L_c / 1000$) $\longrightarrow$ {'🟢 Cumple flecha horizontal' if res_carril['verifica_flecha_h'] else '🔴 Excede límite horizontal'}.
+""")
+
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
 # ------------------------------------------------------------------------------
