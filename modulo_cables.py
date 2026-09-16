@@ -30,3 +30,33 @@ def verificar_cable_elevacion(S_tiro_max_kg: float, coef_seguridad_norma: float 
 # Alias de compatibilidad retroactiva
 verificar_tabla_cables = verificar_cable_elevacion
 obtener_tabla_cables_completa = obtener_catalogo_cables_completo
+def verificar_tabla_cables(Q_kg: float, P_ap_kg: float, num_ramales: int, eta_poleas: float = 0.98, grupo_din: str = "II", coef_seguridad: float = 5.0, *args, **kwargs):
+    """
+    Función de compatibilidad con app.py para cálculo de tiro máximo y verificación.
+    """
+    # Rendimiento de pasteca según número de ramales
+    n_poleas = max(1, num_ramales // 2)
+    rend_mecanismo = eta_poleas ** n_poleas
+    
+    # Tiro máximo en el ramal más solicitado
+    S_max = ((Q_kg + P_ap_kg) / (num_ramales * rend_mecanismo))
+    F_req = S_max * coef_seguridad
+
+    df = obtener_catalogo_cables_completo()
+    if not df.empty:
+        df["Zp_Real"] = (df["Rotura_kgf"] / S_max).round(2)
+        
+        def clasificar(r):
+            if r["Zp_Real"] < coef_seguridad:
+                return "🔴 No Verifica (Inseguro)"
+            elif coef_seguridad <= r["Zp_Real"] <= (coef_seguridad * 1.5):
+                return "🟢 Verifica (Óptimo)"
+            else:
+                return "🟡 Sobredimensionado"
+                
+        df["Estado"] = df.apply(clasificar, axis=1)
+    
+    return round(S_max, 2), round(F_req, 2), df
+
+# Alias para resguardo
+verificar_cable_elevacion = verificar_tabla_cables

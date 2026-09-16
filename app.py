@@ -26,13 +26,13 @@ st.set_page_config(
 # Inyección de CSS para personalizar el diseño (Modo Consola de Control + UTN)
 st.markdown("""
 <style>
-    /* Fondo principal de consola con marca de agua sutil del escudo UTN */
+   /* Fondo estilo consola técnica con marca de agua discreta en la esquina inferior */
     .stApp {
         background-color: #0b111e;
-        background-image: radial-gradient(rgba(14, 165, 233, 0.08) 1px, transparent 0),
+        background-image: radial-gradient(rgba(14, 165, 233, 0.12) 1px, transparent 0),
                           url("https://upload.wikimedia.org/wikipedia/commons/6/67/UTN_logo.jpg");
-        background-size: 24px 24px, 420px auto;
-        background-position: 0 0, calc(100% - 40px) calc(100% - 40px);
+        background-size: 24px 24px, 200px auto;
+        background-position: 0 0, calc(100% - 25px) calc(100% - 25px);
         background-repeat: repeat, no-repeat;
         background-attachment: fixed;
         color: #e2e8f0;
