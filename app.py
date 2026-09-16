@@ -861,6 +861,44 @@ if not ruedas_validas.empty:
 else:
     st.error("❌ Ningún diámetro estándar verifica para el ancho de riel o material seleccionado. Incremente el ancho de riel o seleccione un material con mayor dureza superficial.")
 
+# ==============================================================================
+# 9. MOTORREDUCTORES DE TRASLACIÓN DEL PUENTE (Bilateral: 1 por Testera)
+# ==============================================================================
+from modulo_traslacion import calcular_motorreductor_traslacion
+
+st.markdown("---")
+st.header("⚡ Accionamiento de Traslación del Puente (Grupo Testeras)")
+
+col_tr1, col_tr2, col_tr3 = st.columns(3)
+with col_tr1:
+    t_arranque_user = st.number_input("Tiempo de arranque / rampa (t_a) [s]:", value=3.0, min_value=1.5, max_value=6.0, step=0.5)
+with col_tr2:
+    n_mot_traslacion = st.selectbox("Velocidad sincronismo motor [rpm]:", [1500, 1000, 750], index=0)
+with col_tr3:
+    diametro_para_traslacion = d_rueda_optima if 'd_rueda_optima' in locals() else 315
+
+res_trasl = calcular_motorreductor_traslacion(
+    peso_total_puente_ton=res_testera['Peso_total_puente_cargado_ton'],
+    v_traslacion_m_min=v_traslacion,
+    diametro_rueda_mm=diametro_para_traslacion,
+    tiempo_arranque_s=t_arranque_user,
+    n_motor_rpm=float(n_mot_traslacion)
+)
+
+col_tm1, col_tm2, col_tm3, col_tm4 = st.columns(4)
+col_tm1.metric("Potencia por Motor", f"{res_trasl['pot_motor_iec_kw']} kW", help=f"Régimen: {res_trasl['P_regimen_kw']} kW | Arranque: {res_trasl['P_arranque_kw']} kW")
+col_tm2.metric("Relación Reductor (i)", f"{res_trasl['i_requerido']}:1")
+col_tm3.metric("Velocidad de Rueda", f"{res_trasl['n_rueda_rpm']} rpm")
+col_tm4.metric("Torque de Rueda", f"{res_trasl['torque_rueda_Nm']} N·m")
+
+st.info(f"""
+⚙️ **Configuración Cinemática del Accionamiento Bilateral:**
+* **Esquema:** 2 Motorreductores ortogonales o de ejes paralelos montados directamente al eje hueco de la rueda motriz (1 en cada testera).
+* **Fuerza resistente por rodamiento ($W_r$):** {res_trasl['W_rodamiento_kgf']} kgf | **Fuerza de inercia al arranque ($W_a$):** {res_trasl['W_aceleracion_kgf']} kgf.
+* **Comprobación de Adherencia (Patinamiento):** Coeficiente de tracción requerido $\mu = {res_trasl['mu_calc']}$. 
+  {'🟢 Verificado: Sin riesgo de patinamiento en vacío.' if res_trasl['verifica_adherencia'] else '⚠️ Atención: Riesgo de deslizamiento de rueda motriz al arrancar en vacío.'}
+""")
+
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
 # ------------------------------------------------------------------------------
