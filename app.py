@@ -792,9 +792,17 @@ st.info(
     f"{'🟢 Cumple relación anti-acuñamiento.' if batalla_at_user >= res_testera['at_min_norma_mm'] else '⚠️ Batalla corta, riesgo de acuñamiento.'}"
 )
 
+cst.info(f"""
+⚖️ **Balance Estático entre Apoyos del Puente:**
+* **Peso Total Gravitante (Grúa + Carro + Gancho):** **{res_testera['Peso_total_puente_cargado_ton']} t**
+* **Testera A (Lado del carro en acercamiento $e={e_acercamiento_user:.0f}$ mm):** Reacción = **{res_testera['R_max_testera_ton']} t** ($P_{{rueda}} = {res_testera['P_rueda_max_ton']}$ t)
+* **Testera B (Lado opuesto desahogado):** Reacción = **{res_testera['R_min_testera_ton']} t** ($P_{{rueda}} = {res_testera['P_rueda_min_ton']}$ t)
+* *Suma en apoyos:* ${res_testera['R_max_testera_ton']} + {res_testera['R_min_testera_ton']} = {res_testera['Peso_total_puente_cargado_ton']}$ t (Equilibrio estático cerrado).
+""")
+
 col_mtr1, col_mtr2, col_mtr3, col_mtr4 = st.columns(4)
-col_mtr1.metric("Reacción Total Testera", f"{res_testera['R_total_testera_ton']} t")
-col_mtr2.metric("Carga Máx. por Rueda ($P_r$)", f"{res_testera['P_rueda_max_ton']} t", help=f"{res_testera['P_rueda_max_kg']} kgf")
+col_mtr1.metric("Reacción Máx. Testera A", f"{res_testera['R_max_testera_ton']} t")
+col_mtr2.metric("Carga Máx. por Rueda", f"{res_testera['P_rueda_max_ton']} t", help="Dato de cálculo para riel de carrilera")
 col_mtr3.metric("Momento Flector Testera", f"{res_testera['M_testera_kNm']} kN·m")
 col_mtr4.metric(
     "Tensión Flexión (σ)", 
