@@ -725,3 +725,31 @@ st.markdown("""
         Departamento de Ingeniería Electromecánica | Cátedra de Máquinas y Equipos de Transporte
     </div>
 """, unsafe_allow_html=True)
+# ------------------------------------------------------------------------------
+# CROQUIS CINEMÁTICO INTERACTIVO DEL CARRO DE ELEVACIÓN
+# ------------------------------------------------------------------------------
+from modulo_esquema import generar_diagrama_cinematico
+
+st.markdown("---")
+st.subheader("🗺️ Disposición Cinemática de Componentes en el Carro")
+
+fig_cinematica = generar_diagrama_cinematico(
+    D_tambor_mm=res_tambor['D_tambor_mm'],
+    L_tambor_mm=res_tambor['L_tambor_mm'],
+    D_polea_mm=res_tambor['D_polea_mm'],
+    num_ramales=num_ramales,
+    d_cable_mm=d_cable_sel
+)
+
+st.plotly_chart(fig_cinematica, use_container_width=True)
+
+st.markdown("""
+**Tren de Potencia de Izquierda a Derecha:**
+* **[1] Freno de Retención:** Montado en el eje veloz del motor eléctrico.
+* **[2] Motor Eléctrico:** Accionamiento principal de elevación.
+* **[3] Reductor LENTAX:** Reducción de rpm y aumento de par motriz.
+* **[4] Acoplamiento:** Vinculación rígida/elástica con el tambor.
+* **[5] Tambor Acanalado:** Arrollamiento simétrico del cable.
+* **[6] Cables de Acero:** Ramales descendentes hacia el aparejo.
+* **[7] Pasteca y Gancho:** Conjunto de poleas inferiores y toma de carga.
+""")
