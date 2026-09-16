@@ -731,7 +731,7 @@ st.markdown("""
 from modulo_esquema import generar_diagrama_cinematico
 
 st.markdown("---")
-st.subheader("🗺️ Disposición Cinemática de Componentes en el Carro")
+st.subheader("🗺️ Disposición Cinemática y Tren de Mando del Carro")
 
 fig_cinematica = generar_diagrama_cinematico(
     D_tambor_mm=res_tambor['D_tambor_mm'],
@@ -742,14 +742,3 @@ fig_cinematica = generar_diagrama_cinematico(
 )
 
 st.plotly_chart(fig_cinematica, use_container_width=True)
-
-st.markdown("""
-**Tren de Potencia de Izquierda a Derecha:**
-* **[1] Freno de Retención:** Montado en el eje veloz del motor eléctrico.
-* **[2] Motor Eléctrico:** Accionamiento principal de elevación.
-* **[3] Reductor LENTAX:** Reducción de rpm y aumento de par motriz.
-* **[4] Acoplamiento:** Vinculación rígida/elástica con el tambor.
-* **[5] Tambor Acanalado:** Arrollamiento simétrico del cable.
-* **[6] Cables de Acero:** Ramales descendentes hacia el aparejo.
-* **[7] Pasteca y Gancho:** Conjunto de poleas inferiores y toma de carga.
-""")
