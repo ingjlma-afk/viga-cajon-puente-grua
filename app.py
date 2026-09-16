@@ -693,6 +693,72 @@ with col2:
     st.subheader("📐 Sección Transversal")
     st.plotly_chart(fig_geom, use_container_width=True)
 
+# ==============================================================================
+# 7. MÓDULO DE TESTERAS DEL PUENTE (DIN 120 / FEM 1001)
+# ==============================================================================
+from modulo_testera import calcular_testera, obtener_catalogo_perfiles_testera
+
+st.markdown("---")
+st.header("🛞 Dimensionamiento y Verificación de Testeras (Cabeceros)")
+
+col_test1, col_test2 = st.columns(2)
+with col_test1:
+    # L/7 a L/6
+    batalla_sugerida = round(((Luz * 1000.0) / 6.5) / 100.0) * 100.0
+    batalla_at_user = st.number_input(
+        "Batalla entre ruedas de testera (at) [mm]:", 
+        min_value=1500.0, max_value=6000.0, 
+        value=float(batalla_sugerida), step=100.0,
+        help="Distancia entre centros de rueda de traslación del puente. Criterio: L/7 a L/6 para evitar acuñamiento."
+    )
+    
+with col_test2:
+    e_acercamiento_user = st.number_input(
+        "Acercamiento mínimo del gancho/carro (e_min) [mm]:",
+        min_value=800.0, max_value=3000.0,
+        value=1200.0, step=50.0,
+        help="Distancia mínima de aproximación del centro de gancho al riel de la carrilera."
+    )
+
+catalogo_test = obtener_catalogo_perfiles_testera()
+perfil_testera_adoptado = st.selectbox(
+    "Seleccionar Perfil en Cajón para la Testera:",
+    catalogo_test["Perfil"].tolist(),
+    index=2  # 2x UPN 260 por defecto
+)
+
+res_testera = calcular_testera(
+    Luz_puente_m=Luz,
+    es_birrail=es_birrail,
+    distancia_ruedas_carro_al_mm=al,
+    peso_lineal_viga_kg_m=Pp,
+    peso_carro_total_kg=P_carro_consolidado,
+    Q_carga_kg=Q,
+    acercamiento_min_e_mm=e_acercamiento_user,
+    batalla_adoptada_at_mm=batalla_at_user,
+    perfil_seleccionado_str=perfil_testera_adoptado,
+    sigma_adm_kgf_cm2=sigma_adm_v
+)
+
+st.info(
+    f"📏 **Criterio Normativo de Batalla ($a_t$):** Mínimo ($L/7$) = **{res_testera['at_min_norma_mm']:.0f} mm** | "
+    f"Recomendado ($L/6$) = **{res_testera['at_rec_norma_mm']:.0f} mm**. "
+    f"{'🟢 Cumple relación anti-acuñamiento.' if batalla_at_user >= res_testera['at_min_norma_mm'] else '⚠️ Batalla corta, riesgo de acuñamiento.'}"
+)
+
+col_mtr1, col_mtr2, col_mtr3, col_mtr4 = st.columns(4)
+col_mtr1.metric("Reacción Total Testera", f"{res_testera['R_total_testera_ton']} t")
+col_mtr2.metric("Carga Máx. por Rueda ($P_r$)", f"{res_testera['P_rueda_max_ton']} t", help=f"{res_testera['P_rueda_max_kg']} kgf")
+col_mtr3.metric("Momento Flector Testera", f"{res_testera['M_testera_kNm']} kN·m")
+col_mtr4.metric(
+    "Tensión Flexión (σ)", 
+    f"{res_testera['sigma_real_kgf_cm2']:.1f} kgf/cm²",
+    delta="Verifica" if res_testera['verifica_sigma'] else "No verifica",
+    delta_color="normal" if res_testera['verifica_sigma'] else "inverse"
+)
+
+st.dataframe(res_testera["tabla_perfiles"], use_container_width=True)
+
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
 # ------------------------------------------------------------------------------
