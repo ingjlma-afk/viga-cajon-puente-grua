@@ -1,7 +1,7 @@
 # modulo_esquema.py
 import plotly.graph_objects as go
 
-def generar_diagrama_cinematico(D_tambor_mm: float, L_tambor_mm: float, D_polea_mm: float, num_ramales: int = 4, d_cable_mm: float = 16.0):
+def generar_diagrama_cinematico(D_tambor_mm: float, L_tambor_mm: float, D_polea_mm: float, num_ramales: int = 4, d_cable_mm: float = 16.0, tipo_polipasto: str = "Gemelo", *args, **kwargs):
     fig = go.Figure()
 
     # Dimensiones visuales relativas
@@ -65,7 +65,7 @@ def generar_diagrama_cinematico(D_tambor_mm: float, L_tambor_mm: float, D_polea_
         fill="toself", fillcolor="#1e293b", line=dict(color="#38bdf8", width=2),
         name="[5] Tambor Acanalado",
         hoverinfo="text",
-        text=f"<b>[Ítem 5] Tambor Ranurado</b><br>Ø{D_tambor_mm:.1f} mm x L{L_tambor_mm:.1f} mm"
+        text=f"<b>[Ítem 5] Tambor Ranurado ({tipo_polipasto})</b><br>Ø{D_tambor_mm:.1f} mm x L{L_tambor_mm:.1f} mm"
     ))
 
     # 6. CABLES DESCENDENTES
@@ -78,7 +78,7 @@ def generar_diagrama_cinematico(D_tambor_mm: float, L_tambor_mm: float, D_polea_
         mode="lines", line=dict(color="#94a3b8", width=3, dash="dash"),
         name="[6] Ramales de Cable",
         hoverinfo="text",
-        text=f"<b>[Ítem 6] Cables</b><br>Ø{d_cable_mm:.1f} mm | {num_ramales} ramales"
+        text=f"<b>[Ítem 6] Cables ({num_ramales} ramales)</b>"
     ))
     fig.add_trace(go.Scatter(
         x=[x_c2, x_c2], y=[-h_tambor, y_pasteca_sup],
