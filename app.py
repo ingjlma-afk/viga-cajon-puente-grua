@@ -703,13 +703,12 @@ st.header("🛞 Dimensionamiento y Verificación de Testeras (Cabeceros)")
 
 col_test1, col_test2 = st.columns(2)
 with col_test1:
-    # L/7 a L/6
     batalla_sugerida = round(((Luz * 1000.0) / 6.5) / 100.0) * 100.0
     batalla_at_user = st.number_input(
         "Batalla entre ruedas de testera (at) [mm]:", 
         min_value=1500.0, max_value=6000.0, 
         value=float(batalla_sugerida), step=100.0,
-        help="Distancia entre centros de rueda de traslación del puente. Criterio: L/7 a L/6 para evitar acuñamiento."
+        help="Distancia entre centros de rueda. Criterio DIN: L/7 a L/6 para evitar acuñamiento."
     )
     
 with col_test2:
@@ -717,15 +716,60 @@ with col_test2:
         "Acercamiento mínimo del gancho/carro (e_min) [mm]:",
         min_value=800.0, max_value=3000.0,
         value=1200.0, step=50.0,
-        help="Distancia mínima de aproximación del centro de gancho al riel de la carrilera."
+        help="Distancia mínima del centro del gancho al riel de la carrilera."
     )
 
-catalogo_test = obtener_catalogo_perfiles_testera()
-perfil_testera_adoptado = st.selectbox(
-    "Seleccionar Perfil en Cajón para la Testera:",
-    catalogo_test["Perfil"].tolist(),
-    index=2  # 2x UPN 260 por defecto
+st.subheader("📐 Sección Estructural de la Testera")
+modo_seccion_test = st.radio(
+    "Definición geométrica de la testera:",
+    ["Catálogo Comercial (2x UPN en Cajón)", "Diseño Personalizado (Archivo DXF)"],
+    horizontal=True
 )
+
+prop_dxf_testera = None
+perfil_testera_adoptado = "2x UPN 260"
+fig_testera = go.Figure()
+
+if modo_seccion_test == "Catálogo Comercial (2x UPN en Cajón)":
+    catalogo_test = obtener_catalogo_perfiles_testera()
+    perfil_testera_adoptado = st.selectbox(
+        "Seleccionar Perfil Comercial:",
+        catalogo_test["Perfil"].tolist(),
+        index=2
+    )
+else:
+    col_dxf_t1, col_dxf_t2 = st.columns([2, 1])
+    with col_dxf_t1:
+        uploaded_dxf_test = st.file_uploader("Subir DXF de la sección de la testera (en mm):", type=["dxf"], key="dxf_testera")
+    with col_dxf_t2:
+        rot_dxf_test = st.selectbox("🔄 Rotar Sección", [0, 90, 180, 270], index=0, key="rot_testera")
+
+    if uploaded_dxf_test is not None:
+        try:
+            prop_dxf_testera = procesar_dxf(uploaded_dxf_test, angulo_deg=rot_dxf_test)
+            if prop_dxf_testera:
+                st.success(f"✅ Sección CAD procesada: Wx = {prop_dxf_testera['Wx']:.1f} cm³ | Peso = {prop_dxf_testera['Pp']:.1f} kg/m")
+                for idx, poly in enumerate(prop_dxf_testera['poligonos']):
+                    pts = poly['pts']
+                    xs = [p[0] - prop_dxf_testera['Cx'] for p in pts] + [pts[0][0] - prop_dxf_testera['Cx']]
+                    ys = [p[1] - prop_dxf_testera['Cy'] for p in pts] + [pts[0][1] - prop_dxf_testera['Cy']]
+                    fig_testera.add_trace(go.Scatter(
+                        x=xs, y=ys, fill="toself" if idx == 0 else "none",
+                        fillcolor="Goldenrod", line=dict(color="Black" if idx == 0 else "White"),
+                        mode="lines", showlegend=False
+                    ))
+                fig_testera.update_layout(
+                    yaxis=dict(scaleanchor="x", scaleratio=1),
+                    xaxis=dict(constrain="domain"),
+                    paper_bgcolor="#0b111e", plot_bgcolor="#070d18",
+                    margin=dict(l=10, r=10, t=10, b=10), height=250
+                )
+            else:
+                st.error("No se detectaron polilíneas cerradas en el DXF.")
+        except Exception as e:
+            st.error(f"Error al leer DXF: {e}")
+    else:
+        st.info("Suba un archivo .dxf para calcular las propiedades de la sección personalizada.")
 
 res_testera = calcular_testera(
     Luz_puente_m=Luz,
@@ -736,12 +780,14 @@ res_testera = calcular_testera(
     Q_carga_kg=Q,
     acercamiento_min_e_mm=e_acercamiento_user,
     batalla_adoptada_at_mm=batalla_at_user,
+    modo_seccion=modo_seccion_test,
     perfil_seleccionado_str=perfil_testera_adoptado,
+    prop_dxf=prop_dxf_testera,
     sigma_adm_kgf_cm2=sigma_adm_v
 )
 
 st.info(
-    f"📏 **Criterio Normativo de Batalla ($a_t$):** Mínimo ($L/7$) = **{res_testera['at_min_norma_mm']:.0f} mm** | "
+    f"📏 **Batalla Normativa ($a_t$):** Mínimo ($L/7$) = **{res_testera['at_min_norma_mm']:.0f} mm** | "
     f"Recomendado ($L/6$) = **{res_testera['at_rec_norma_mm']:.0f} mm**. "
     f"{'🟢 Cumple relación anti-acuñamiento.' if batalla_at_user >= res_testera['at_min_norma_mm'] else '⚠️ Batalla corta, riesgo de acuñamiento.'}"
 )
@@ -757,7 +803,19 @@ col_mtr4.metric(
     delta_color="normal" if res_testera['verifica_sigma'] else "inverse"
 )
 
-st.dataframe(res_testera["tabla_perfiles"], use_container_width=True)
+if modo_seccion_test == "Diseño Personalizado (Archivo DXF)" and prop_dxf_testera:
+    col_g1, col_g2 = st.columns([1, 1])
+    with col_g1:
+        st.markdown(f"""
+        **Propiedades de la Sección Personalizada:**
+        * Módulo resistente elástico ($W_x$): **{res_testera['Wx_cm3']} cm³**
+        * Peso propio lineal: **{res_testera['peso_lineal_kg_m']} kg/m**
+        * Peso estimado testera completa: **{res_testera['peso_propio_testera_kg']} kg**
+        """)
+    with col_g2:
+        st.plotly_chart(fig_testera, use_container_width=True)
+else:
+    st.dataframe(res_testera["tabla_perfiles"], use_container_width=True)
 
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
