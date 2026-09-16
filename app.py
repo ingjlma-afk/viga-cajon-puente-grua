@@ -318,10 +318,20 @@ with st.sidebar.expander("🌉 Geometría del Puente y Cargas", expanded=True):
 
 with st.sidebar.expander("⚙️ Elevación y Polipasto", expanded=True):
 
+    v_carro = st.number_input(
+        "Velocidad de traslación del carro / dirección (vy) [m/min]:", 
+        value=16.0, min_value=5.0, max_value=40.0, step=1.0,
+        help="Velocidad transversal del carro a lo largo del puente (típico: 12 a 20 m/min)."
+    )
+    d_rueda_carro = st.selectbox(
+        "Diámetro ruedas del carro (Dr_carro) [mm]:", 
+        [160, 200, 250, 315], index=2
+    )
+
     v_traslacion = st.number_input(
         "Velocidad de traslación (vt) [m/min]:", 
         value=25.0, min_value=5.0, max_value=80.0, step=2.5,
-        help="Velocidad longitudinal del puente sobre las carrileras (típico en naves: 20 a 40 m/min con comando o cabina)."
+        help="Velocidad longitudinal del puente sobre las carrileras (típico en naves: 20 a 40 m/min con comando o      cabina)."
     )
     t_arranque_user = st.number_input(
         "Tiempo de aceleración / rampa (ta) [s]:", 
@@ -604,6 +614,35 @@ fig_croquis = generar_diagrama_cinematico(
     tipo_polipasto=tipo_polipasto
 )
 st.plotly_chart(fig_croquis, use_container_width=True)
+
+# ==============================================================================
+# 5.B TRASLACIÓN DEL CARRO / DIRECCIÓN TRANSVERSAL (EJE Y)
+# ==============================================================================
+from modulo_direccion import calcular_motor_direccion_carro
+
+st.markdown("---")
+st.subheader("↔️ Motorización de la Dirección del Carro (Traslación Transversal)")
+
+res_dir = calcular_motor_direccion_carro(
+    Q_carga_kg=Q,
+    peso_carro_kg=peso_pasteca + res_tambor['peso_cable_kg'] + res_tambor['peso_tambor_kg'] + peso_motor_iec_kg + peso_reductor_real + peso_freno_real + 400.0,
+    v_direccion_m_min=v_carro,
+    diametro_rueda_carro_mm=float(d_rueda_carro),
+    es_birrail=es_birrail
+)
+
+col_cd1, col_cd2, col_cd3, col_cd4 = st.columns(4)
+col_cd1.metric("Potencia Motor Carro", f"{res_dir['pot_iec_kw']} kW", help=f"Cant. Motores: {res_dir['num_motores']} | En régimen: {res_dir['P_regimen_kw']} kW")
+col_cd2.metric("Relación Reductor (i)", f"{res_dir['i_req']}:1")
+col_cd3.metric("Velocidad Rueda Carro", f"{res_dir['n_rueda_rpm']} rpm")
+col_cd4.metric("Torque en Eje Rueda", f"{res_dir['torque_rueda_Nm']} N·m")
+
+st.info(f"""
+💡 **Accionamiento de Dirección ({res_dir['num_motores']} motor/es de {res_dir['pot_iec_kw']} kW):**
+* **Masa transversal total:** {res_dir['peso_total_ton']} t (Carga $Q$ + Carro completo).
+* **Fuerza resistente rodamiento:** {res_dir['W_rodamiento_kgf']} kgf | **Fuerza inercial arranque:** {res_dir['W_acel_kgf']} kgf.
+* Permite desplazar transversalmente el polipasto a **{v_carro} m/min** con rampa suave controlada.
+""")
 
 # ==============================================================================
 # 6. BALANCE CONSOLIDADO DE CARGAS Y CÁLCULO ESTRUCTURAL DE LA VIGA CAJÓN
