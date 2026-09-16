@@ -825,6 +825,42 @@ if modo_seccion_test == "Diseño Personalizado (Archivo DXF)" and prop_dxf_teste
 else:
     st.dataframe(res_testera["tabla_perfiles"], use_container_width=True)
 
+# ==============================================================================
+# 8. RUEDAS DE TRASLACIÓN DE TESTERAS (DIN 15070 / FEM 9.511)
+# ==============================================================================
+from modulo_rueda import evaluar_ruedas_traslacion, obtener_catalogo_rieles, obtener_materiales_rueda
+
+st.markdown("---")
+st.header("⚙️ Verificación de Ruedas de Traslación del Puente (DIN 15070)")
+
+col_r1, col_r2, col_r3 = st.columns(3)
+with col_r1:
+    v_traslacion = st.number_input("Velocidad de traslación del puente [m/min]:", value=25.0, step=2.0)
+with col_r2:
+    riel_adoptado = st.selectbox("Perfil de Riel en Carrilera:", list(obtener_catalogo_rieles().keys()), index=1)
+with col_r3:
+    mat_rueda = st.selectbox("Material de Ruedas:", list(obtener_materiales_rueda().keys()), index=1)
+
+df_ruedas, b_util_mm = evaluar_ruedas_traslacion(
+    P_rueda_kg=res_testera['P_rueda_max_kg'],
+    v_traslacion_m_min=v_traslacion,
+    grupo_din=grupo_din,
+    riel_sel_str=riel_adoptado,
+    material_sel_str=mat_rueda
+)
+
+st.info(f"🛤️ **Riel Seleccionado:** `{riel_adoptado}` | Ancho útil de apoyo: **$b_u = {b_util_mm}$ mm** | Carga actuante: **$P_{{rueda}} = {res_testera['P_rueda_max_ton']}$ t**")
+
+st.dataframe(df_ruedas, use_container_width=True)
+
+ruedas_validas = df_ruedas[df_ruedas["Estado"] == "🟢 Verifica"]
+if not ruedas_validas.empty:
+    d_rueda_optima = int(ruedas_validas.iloc[0]["Diametro_mm"])
+    rpm_optima = float(ruedas_validas.iloc[0]["rpm_rueda"])
+    st.success(f"✅ **Diámetro Normalizado Mínimo Recomendado:** **Ø {d_rueda_optima} mm** (Gira a **{rpm_optima} rpm** a plena marcha).")
+else:
+    st.error("❌ Ningún diámetro estándar verifica para el ancho de riel o material seleccionado. Incremente el ancho de riel o seleccione un material con mayor dureza superficial.")
+
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
 # ------------------------------------------------------------------------------
