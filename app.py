@@ -1051,6 +1051,86 @@ st.info(f"""
 * **Flecha horizontal elástica:** $f_h = {res_carril['f_h_calc_mm']}$ mm $\le$ {res_carril['f_adm_h_mm']} mm ($L_c / 1000$) $\longrightarrow$ {'🟢 Cumple flecha horizontal' if res_carril['verifica_flecha_h'] else '🔴 Excede límite horizontal'}.
 """)
 
+# ==============================================================================
+# 11. GENERACIÓN DE MEMORIA TÉCNICA EJECUTIVA EN PDF
+# ==============================================================================
+from modulo_reporte import generar_pdf_memoria
+
+st.markdown("---")
+st.header("📑 Emisión de Memoria Técnica Ejecutiva (Informe de Ingeniería)")
+
+col_rep1, col_rep2 = st.columns([3, 1])
+with col_rep1:
+    st.write(
+        "Genere un informe formal con el desglose de componentes mecánicos, "
+        "propiedades geométricas de las secciones, solicitaciones biaxiales y verificación de normas "
+        "listo para archivo técnico o presentación directiva."
+    )
+
+with col_rep2:
+    datos_informe = {
+        'tipologia': "Birraíl (Doble Viga)" if es_birrail else "Monoviga (Viga Simple)",
+        'Q_ton': Q / 1000.0,
+        'Luz_m': Luz,
+        'H_m': he,
+        'grupo_din': grupo_din,
+        'grupo_fem': grupo_fem,
+        'cable_nombre': str(cable_sel.get('Norma_Marca', 'Cable')) + " " + str(cable_sel.get('Composicion', '')),
+        'd_cable': d_cable_sel,
+        'cs_cable': float(cable_sel.get('CS_Real', 0.0)),
+        'D_tambor': res_tambor['D_tambor_mm'],
+        'L_tambor': res_tambor['L_tambor_mm'],
+        'D_polea': res_tambor['D_polea_mm'],
+        'pot_motor_elev': res_motor['potencia_motor_kw'],
+        'modelo_reductor': reductor_elegido['Modelo'],
+        'i_reductor': i_reductor_real,
+        'freno_nombre': freno_sel['Modelo'],
+        'freno_kf': float(freno_sel.get('k_f_Real', kf_aplicado)),
+        'p_pasteca': peso_pasteca,
+        'p_cable': res_tambor['peso_cable_kg'],
+        'p_tambor': res_tambor['peso_tambor_kg'],
+        'p_mecanismos': peso_motor_iec_kg + peso_reductor_real + peso_freno_real,
+        'p_bastidor': peso_bastidor_carro_kg,
+        'p_carro_tot': P_carro_consolidado,
+        'p_movil_tot': CARGA_TOTAL_ACTUANTE,
+        'sec_viga_nombre': "Cajón Paramétrica" if modo_geometria.startswith("Paramétrica") else "Sección Arbitraria DXF",
+        'Jx_cm4': Jx,
+        'Wx_cm3': Wx,
+        'Pp_viga': Pp,
+        'sigma_v': sigma_v,
+        'adm_v': sigma_adm_v,
+        'sigma_Hv': sigma_Hv,
+        'adm_hv': sigma_adm_hv,
+        'f_calc_cm': f_real,
+        'f_adm_cm': f_adm,
+        'viga_ok': verf_v and verf_hv and verf_f,
+        'batalla_at': batalla_at_user,
+        'R_max_test': res_testera['R_max_testera_ton'],
+        'R_min_test': res_testera['R_min_testera_ton'],
+        'Pr_ton': res_testera['P_rueda_max_ton'],
+        'sec_testera': res_testera['nombre_seccion'],
+        'sigma_test': res_testera['sigma_real_kgf_cm2'],
+        'd_rueda': d_rueda_optima,
+        'riel': riel_adoptado,
+        'pot_trasl_kw': res_trasl['pot_motor_iec_kw'],
+        'i_trasl': res_trasl['i_requerido'],
+        'Lc_m': L_columnas,
+        'sec_carrilera': res_carril['nombre_seccion'],
+        'sigma_carril': res_carril['sigma_comb_kgf_cm2'],
+        'fv_carril': res_carril['f_v_calc_mm'],
+        'fv_adm_carril': res_carril['f_adm_v_mm'],
+        'carril_ok': res_carril['verifica_tension'] and res_carril['verifica_flecha_v']
+    }
+    
+    pdf_bytes = bytes(generar_pdf_memoria(datos_informe))
+    st.download_button(
+        label="📥 Descargar Memoria Técnica (PDF)",
+        data=pdf_bytes,
+        file_name=f"Memoria_Tecnica_Puente_Grua_{int(Q)}kgf.pdf",
+        mime="application/pdf",
+        use_container_width=True
+    )
+
 # ------------------------------------------------------------------------------
 # PIE DE PÁGINA INSTITUCIONAL
 # ------------------------------------------------------------------------------
